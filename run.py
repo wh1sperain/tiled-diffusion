@@ -1,8 +1,6 @@
 import gc
 import os
-import requests
 from PIL import Image
-from io import BytesIO
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
@@ -13,42 +11,35 @@ os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 torch.cuda.empty_cache()
 gc.collect()
 
-scheduler = 'ddpm'
-# scheduler = 'ddim'
+scheduler = 'ddim'
+# scheduler = 'ddpm'
 model = SDLatentTiling(scheduler=scheduler)
 # Parameters
 
-prompt_1 = "Red brick texture"
-prompt_2 = "Green brick texture"
-negative_prompt = "blured, ugly, deformed, disfigured, poor details, bad anatomy, pixelized, bad order"
-inference_steps = 40
+prompt = "preserve the original mountain photo, keep the rock shapes, ridge lines, natural colors and fine details, only make the image seamlessly tileable"
+negative_prompt = "blurry, blurred, soft focus, low detail, oversmoothed, deformed, disfigured, poor details, bad anatomy, pixelized, artifacts"
+inference_steps = 50
 seed = 151
-cfg_scale = 7.5
-max_replica_width = 5
-max_width = 32
+cfg_scale = 4.5
+max_replica_width = 3
+max_width = 12
 height = 512
 width = 512
-input_image = None
 
 ######################### IMAGE TO IMAGE #########################
-strength = 0.92
-# url = "https://raw.githubusercontent.com/CompVis/stable-diffusion/main/assets/stable-samples/img2img/sketch-mountains-input.jpg"
-# response = requests.get(url)
-# input_image = Image.open(BytesIO(response.content)).convert("RGB")
-# input_image = input_image.resize((768, 512))
+strength = 0.22
+input_image = Image.open("./test_images/mount.jpg").convert("RGB")
+input_image = input_image.resize((512, 512))
 #################################################################
 
 if input_image:
     width, height = input_image.size
 
 # Right, Left, Up, Down
-lat1 = LatentClass(prompt=prompt_1, negative_prompt=negative_prompt, side_id=[1, 1, None, None],
-                   side_dir=['cw', 'ccw', None, None])
+lat1 = LatentClass(prompt=prompt, negative_prompt=negative_prompt, side_id=[1, 1, 2, 2],
+                   side_dir=['cw', 'ccw', 'cw', 'ccw'], source_image=input_image)
 
-lat2 = LatentClass(prompt=prompt_2, negative_prompt=negative_prompt, side_id=[1, 1, None, None],
-                   side_dir=['cw', 'ccw', None, None])
-
-latents_arr = [lat1, lat2]
+latents_arr = [lat1]
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 new_latents_arr = model(latents_arr=latents_arr,
                         negative_prompt=negative_prompt,
@@ -65,10 +56,12 @@ new_latents_arr = model(latents_arr=latents_arr,
 torch.cuda.empty_cache()
 gc.collect()
 
-lat1_new = new_latents_arr[0]
-lat2_new = new_latents_arr[1]
-t_1 = np.concatenate((lat1_new.image, lat2_new.image, lat2_new.image, lat1_new.image),
-                     axis=1)
+self_tiled_image = new_latents_arr[0].image
+tiled_preview = np.concatenate((self_tiled_image, self_tiled_image), axis=1)
 
-plt.imshow(t_1)
+plt.figure(figsize=(12, 6))
+plt.imshow(tiled_preview)
+plt.axis('off')
+plt.title('1x2 self-tiled preview of mount.jpg')
+plt.tight_layout()
 plt.show()
