@@ -11,25 +11,26 @@ os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 torch.cuda.empty_cache()
 gc.collect()
 
-scheduler = 'ddim'
-# scheduler = 'ddpm'
+scheduler = 'ddpm'
+# scheduler = 'ddim'
 model = SDLatentTiling(scheduler=scheduler)
 # Parameters
 
-prompt = "preserve the original mountain photo, keep the rock shapes, ridge lines, natural colors and fine details, only make the image seamlessly tileable"
-negative_prompt = "blurry, blurred, soft focus, low detail, oversmoothed, deformed, disfigured, poor details, bad anatomy, pixelized, artifacts"
-inference_steps = 50
+prompt = "Red brick texture"
+negative_prompt = "blured, ugly, deformed, disfigured, poor details, bad anatomy, pixelized, bad order"
+inference_steps = 40
 seed = 151
-cfg_scale = 4.5
-max_replica_width = 3
-max_width = 12
+cfg_scale = 7.5
+max_replica_width = 4
+max_width = 32
 height = 512
 width = 512
+input_image = None
 
 ######################### IMAGE TO IMAGE #########################
-strength = 0.22
-input_image = Image.open("./test_images/mount.jpg").convert("RGB")
-input_image = input_image.resize((512, 512))
+strength = 0.95
+# input_image = Image.open("./test_images/mount.jpg").convert("RGB")
+# input_image = input_image.resize((512, 512))
 #################################################################
 
 if input_image:
@@ -62,6 +63,6 @@ tiled_preview = np.concatenate((self_tiled_image, self_tiled_image), axis=1)
 plt.figure(figsize=(12, 6))
 plt.imshow(tiled_preview)
 plt.axis('off')
-plt.title('1x2 self-tiled preview of mount.jpg')
+plt.title('1x2 self-tiled txt2img preview')
 plt.tight_layout()
 plt.show()
