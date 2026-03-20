@@ -1,5 +1,6 @@
 import gc
 import logging
+import os
 
 import PIL.Image
 import numpy as np
@@ -14,45 +15,61 @@ from utils import retrieve_latents, retrieve_timesteps, get_timesteps, randn_ten
 
 
 class SDLatentTiling:
-    def __init__(self, model_id=MODEL_ID_SD_1_5, scheduler="ddpm"):
+    def __init__(self, model_id=MODEL_ID_SD_1_5, scheduler="ddpm", local_files_only=True):
         self.model_id = model_id
+        self.local_files_only = local_files_only
+        pretrained_kwargs = {
+            "local_files_only": local_files_only,
+        }
+
+        if local_files_only:
+            os.environ.setdefault("HF_HUB_OFFLINE", "1")
+            os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
+
         self.tokenizer = CLIPTokenizer.from_pretrained(
             model_id,
             subfolder='tokenizer',
+            **pretrained_kwargs,
         )
 
         self.text_encoder = CLIPTextModel.from_pretrained(
             model_id,
             subfolder='text_encoder',
             # use_safetensors=True,
+            **pretrained_kwargs,
         ).to('cuda')
 
         self.unet = UNet2DConditionModel.from_pretrained(
             model_id,
             subfolder='unet',
             # use_safetensors=True,
+            **pretrained_kwargs,
         ).to('cuda')
 
         self.vae = AutoencoderKL.from_pretrained(
             model_id,
             subfolder='vae',
             # use_safetensors=True,
+            **pretrained_kwargs,
         ).to('cuda')
 
         if scheduler == "ddpm":
             self.scheduler = DDPMScheduler.from_pretrained(
                 model_id,
                 subfolder='scheduler',
+                **pretrained_kwargs,
             )
         elif scheduler == "ddim":
             self.scheduler = DDIMScheduler.from_pretrained(
                 model_id,
                 subfolder='scheduler',
+                **pretrained_kwargs,
             )
         else:  # Euler
             self.scheduler = EulerDiscreteScheduler.from_pretrained(
                 model_id,
                 subfolder='scheduler',
+                **pretrained_kwargs,
             )
         logging.warning("Finished loading models..")
 

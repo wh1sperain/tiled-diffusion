@@ -23,8 +23,11 @@ from PIL import Image
 
 from latent_class import LatentClass
 from model import SDLatentTiling
+from evaluator import Evaluator
 
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+os.environ.setdefault("HF_HUB_DISABLE_TELEMETRY", "1")
+DEFAULT_HF_ENDPOINT = "https://hf-mirror.com"
 
 # ======================== 全局固定配置 ========================
 
@@ -130,7 +133,7 @@ def get_vram_mb():
     return 0
 
 
-def run_single_experiment(model, sample, max_width, max_replica_width, out_dir, exp_label):
+def run_single_experiment(model, sample, max_width, max_replica_width, out_dir, exp_label, evaluator=None):
     """运行单次实验并保存结果，返回记录字典"""
     torch.cuda.empty_cache()
     gc.collect()
@@ -185,6 +188,17 @@ def run_single_experiment(model, sample, max_width, max_replica_width, out_dir, 
     if has_x:
         save_boundary_crop(img, os.path.join(out_dir, f"{prefix}_boundary.png"))
 
+    # 评估指标
+    clip_score = None
+    tiling_x_score = None
+    tiling_y_score = None
+    if evaluator is not None:
+        clip_score = evaluator.evaluate_image_text_alignment(img, sample["prompt"])
+        if has_x:
+            tiling_x_score = evaluator.evaluate_tiling(img, img, direction='x')
+        if has_y:
+            tiling_y_score = evaluator.evaluate_tiling(img, img, direction='y')
+
     record = {
         "experiment": exp_label,
         "sample": sample["name"],
@@ -199,13 +213,23 @@ def run_single_experiment(model, sample, max_width, max_replica_width, out_dir, 
         "width": WIDTH,
         "time_seconds": round(elapsed, 2),
         "vram_mb": round(vram, 1),
+        "clip_score": round(clip_score, 4) if clip_score is not None else None,
+        "tiling_x_mag": round(tiling_x_score, 6) if tiling_x_score is not None else None,
+        "tiling_y_mag": round(tiling_y_score, 6) if tiling_y_score is not None else None,
     }
 
-    print(f"  [{exp_label}] {sample['name']}  |  耗时 {elapsed:.1f}s  |  显存 {vram:.0f}MB")
+    metrics_str = f"耗时 {elapsed:.1f}s  |  显存 {vram:.0f}MB"
+    if clip_score is not None:
+        metrics_str += f"  |  CLIP={clip_score:.4f}"
+    if tiling_x_score is not None:
+        metrics_str += f"  |  MAG_x={tiling_x_score:.6f}"
+    if tiling_y_score is not None:
+        metrics_str += f"  |  MAG_y={tiling_y_score:.6f}"
+    print(f"  [{exp_label}] {sample['name']}  |  {metrics_str}")
     return record
 
 
-def run_multi_tile_experiment(model, experiment_type, max_width, max_replica_width):
+def run_multi_tile_experiment(model, experiment_type, max_width, max_replica_width, evaluator=None):
     """运行多 tile 拼接实验"""
     torch.cuda.empty_cache()
     gc.collect()
@@ -275,14 +299,42 @@ def run_multi_tile_experiment(model, experiment_type, max_width, max_replica_wid
         combined = np.concatenate([row0, row1], axis=0)
         save_image(combined, os.path.join(out_dir, f"{label}_combined.png"))
 
-    print(f"  [{label}] 完成  |  耗时 {elapsed:.1f}s  |  显存 {vram:.0f}MB")
+    # 评估指标
+    clip_scores = []
+    tiling_x_scores = []
+    if evaluator is not None:
+        for lat in new_latents:
+            clip_scores.append(evaluator.evaluate_image_text_alignment(lat.image, prompt))
+        if experiment_type == "one2one":
+            tiling_x_scores.append(evaluator.evaluate_tiling(
+                new_latents[0].image, new_latents[1].image, direction='x'))
+        elif experiment_type == "many2many":
+            # 水平: tile0-tile1, tile2-tile3
+            tiling_x_scores.append(evaluator.evaluate_tiling(
+                new_latents[0].image, new_latents[1].image, direction='x'))
+            tiling_x_scores.append(evaluator.evaluate_tiling(
+                new_latents[2].image, new_latents[3].image, direction='x'))
+
+    avg_clip = round(np.mean(clip_scores), 4) if clip_scores else None
+    avg_mag_x = round(np.mean(tiling_x_scores), 6) if tiling_x_scores else None
+
+    metrics_str = f"耗时 {elapsed:.1f}s  |  显存 {vram:.0f}MB"
+    if avg_clip is not None:
+        metrics_str += f"  |  CLIP={avg_clip:.4f}"
+    if avg_mag_x is not None:
+        metrics_str += f"  |  MAG_x={avg_mag_x:.6f}"
+    print(f"  [{label}] 完成  |  {metrics_str}")
+
     return {
         "experiment": label,
+        "prompt": prompt,
         "seed": seed,
         "max_width": max_width,
         "max_replica_width": max_replica_width,
         "time_seconds": round(elapsed, 2),
         "vram_mb": round(vram, 1),
+        "clip_score_avg": avg_clip,
+        "tiling_x_mag_avg": avg_mag_x,
     }
 
 
@@ -300,10 +352,50 @@ def main():
                         help="覆盖默认 max_width (实验B时使用)")
     parser.add_argument("--max_replica_width", type=int, default=None,
                         help="覆盖默认 max_replica_width")
+    parser.add_argument("--no_eval", action="store_true",
+                        help="跳过评估指标计算（加快运行速度）")
+    parser.add_argument("--online", action="store_true",
+                        help="允许从 Hugging Face 在线下载缺失模型文件")
+    parser.add_argument("--hf_endpoint", type=str, default=None,
+                        help="在线模式使用的 Hugging Face 端点，默认使用 https://hf-mirror.com")
     args = parser.parse_args()
 
+    local_files_only = not args.online
+    if local_files_only:
+        os.environ["HF_HUB_OFFLINE"] = "1"
+        os.environ["TRANSFORMERS_OFFLINE"] = "1"
+        os.environ.pop("HF_ENDPOINT", None)
+    else:
+        os.environ.pop("HF_HUB_OFFLINE", None)
+        os.environ.pop("TRANSFORMERS_OFFLINE", None)
+        hf_endpoint = args.hf_endpoint or os.environ.get("HF_ENDPOINT") or DEFAULT_HF_ENDPOINT
+        os.environ["HF_ENDPOINT"] = hf_endpoint
+        print(f"在线模式端点: {hf_endpoint}")
+
     print(f"加载模型 (scheduler={SCHEDULER})...")
-    model = SDLatentTiling(scheduler=SCHEDULER)
+    try:
+        model = SDLatentTiling(scheduler=SCHEDULER, local_files_only=local_files_only)
+    except OSError as exc:
+        if local_files_only:
+            raise RuntimeError(
+                "离线模式下未找到本地 Hugging Face 模型缓存。"
+                "请先联网运行一次 `python test.py --experiment sample --index 1 --online --no_eval` 下载基础模型。"
+            ) from exc
+        raise
+
+    evaluator = None
+    if not args.no_eval:
+        print("加载评估模型 (CLIP + MAG)...")
+        try:
+            evaluator = Evaluator(local_files_only=local_files_only)
+        except OSError as exc:
+            if local_files_only:
+                raise RuntimeError(
+                    "离线模式下未找到评估器所需的 Hugging Face 缓存。"
+                    "请先联网运行一次 `python test.py --experiment sample --index 1 --online` 下载评估模型。"
+                ) from exc
+            raise
+
     all_records = []
 
     if args.experiment == "sample":
@@ -314,7 +406,7 @@ def main():
             mw = args.max_width or DEFAULT_MAX_WIDTH
             mrw = args.max_replica_width or DEFAULT_MAX_REPLICA_WIDTH
             print(f"\n--- 样例 {i+1}: {s['desc']} ---")
-            rec = run_single_experiment(model, s, mw, mrw, out_dir, f"S{i+1}")
+            rec = run_single_experiment(model, s, mw, mrw, out_dir, f"S{i+1}", evaluator=evaluator)
             all_records.append(rec)
 
     elif args.experiment == "A":
@@ -329,7 +421,7 @@ def main():
         for mw, label in zip(widths, labels):
             print(f"\n=== {label}: max_width={mw}, max_replica_width={mrw} ===")
             for i, s in enumerate(SAMPLES):
-                rec = run_single_experiment(model, s, mw, mrw, out_dir, label)
+                rec = run_single_experiment(model, s, mw, mrw, out_dir, label, evaluator=evaluator)
                 all_records.append(rec)
 
     elif args.experiment == "B":
@@ -344,14 +436,14 @@ def main():
         for mrw, label in zip(rws, labels):
             print(f"\n=== {label}: max_width={mw}, max_replica_width={mrw} ===")
             for i, s in enumerate(SAMPLES):
-                rec = run_single_experiment(model, s, mw, mrw, out_dir, label)
+                rec = run_single_experiment(model, s, mw, mrw, out_dir, label, evaluator=evaluator)
                 all_records.append(rec)
 
     elif args.experiment in ("one2one", "many2many"):
         mw = args.max_width or DEFAULT_MAX_WIDTH
         mrw = args.max_replica_width or DEFAULT_MAX_REPLICA_WIDTH
         print(f"\n=== {args.experiment}: max_width={mw}, max_replica_width={mrw} ===")
-        rec = run_multi_tile_experiment(model, args.experiment, mw, mrw)
+        rec = run_multi_tile_experiment(model, args.experiment, mw, mrw, evaluator=evaluator)
         if rec:
             all_records.append(rec)
 

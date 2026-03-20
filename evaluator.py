@@ -1,5 +1,6 @@
 import lpips
 import numpy as np
+import os
 import torch
 import torchvision.transforms as transforms
 from PIL import Image
@@ -16,9 +17,16 @@ from utils import mean_absolute_gradient
 
 class Evaluator:
 
-    def __init__(self):
-        self.img_text_model = CLIPModel.from_pretrained(CLIP_MODEL_EVALUATION)
-        self.img_text_processor = CLIPProcessor.from_pretrained(CLIP_MODEL_EVALUATION)
+    def __init__(self, local_files_only=True):
+        pretrained_kwargs = {
+            "local_files_only": local_files_only,
+        }
+        if local_files_only:
+            os.environ.setdefault("HF_HUB_OFFLINE", "1")
+            os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
+
+        self.img_text_model = CLIPModel.from_pretrained(CLIP_MODEL_EVALUATION, **pretrained_kwargs)
+        self.img_text_processor = CLIPProcessor.from_pretrained(CLIP_MODEL_EVALUATION, **pretrained_kwargs)
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.clip_model, _ = clip.load("ViT-B/32", device=self.device)
         self.inception_model = inception_v3(pretrained=True, transform_input=False).eval().to(self.device)
