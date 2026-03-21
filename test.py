@@ -16,14 +16,11 @@ import json
 import os
 import time
 
-import matplotlib.pyplot as plt
 import numpy as np
 import torch
 from PIL import Image
 
 from latent_class import LatentClass
-from model import SDLatentTiling
-from evaluator import Evaluator
 
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 os.environ.setdefault("HF_HUB_DISABLE_TELEMETRY", "1")
@@ -213,9 +210,9 @@ def run_single_experiment(model, sample, max_width, max_replica_width, out_dir, 
         "width": WIDTH,
         "time_seconds": round(elapsed, 2),
         "vram_mb": round(vram, 1),
-        "clip_score": round(clip_score, 4) if clip_score is not None else None,
-        "tiling_x_mag": round(tiling_x_score, 6) if tiling_x_score is not None else None,
-        "tiling_y_mag": round(tiling_y_score, 6) if tiling_y_score is not None else None,
+        "clip_score": float(round(clip_score, 4)) if clip_score is not None else None,
+        "tiling_x_mag": float(round(tiling_x_score, 6)) if tiling_x_score is not None else None,
+        "tiling_y_mag": float(round(tiling_y_score, 6)) if tiling_y_score is not None else None,
     }
 
     metrics_str = f"耗时 {elapsed:.1f}s  |  显存 {vram:.0f}MB"
@@ -315,8 +312,9 @@ def run_multi_tile_experiment(model, experiment_type, max_width, max_replica_wid
             tiling_x_scores.append(evaluator.evaluate_tiling(
                 new_latents[2].image, new_latents[3].image, direction='x'))
 
-    avg_clip = round(np.mean(clip_scores), 4) if clip_scores else None
-    avg_mag_x = round(np.mean(tiling_x_scores), 6) if tiling_x_scores else None
+    valid_clip = [s for s in clip_scores if s is not None]
+    avg_clip = float(round(np.mean(valid_clip), 4)) if valid_clip else None
+    avg_mag_x = float(round(np.mean(tiling_x_scores), 6)) if tiling_x_scores else None
 
     metrics_str = f"耗时 {elapsed:.1f}s  |  显存 {vram:.0f}MB"
     if avg_clip is not None:
@@ -338,14 +336,302 @@ def run_multi_tile_experiment(model, experiment_type, max_width, max_replica_wid
     }
 
 
+# ======================== 可视化与分析 ========================
+
+
+def print_summary_table(records, ablation_key):
+    """打印消融实验各参数组的指标汇总表"""
+    from collections import defaultdict
+    by_param = defaultdict(list)
+    for r in records:
+        by_param[r[ablation_key]].append(r)
+    param_values = sorted(by_param.keys())
+    print(f"\n{'='*78}")
+    print(f"  Ablation Summary ({ablation_key})")
+    print(f"{'='*78}")
+    print(f"  {'Param':>8} | {'CLIP↑':>8} | {'MAG_x↓':>10} | {'MAG_y↓':>10} | {'Time(s)':>8} | {'VRAM(MB)':>9}")
+    print(f"  {'-'*8}-+-{'-'*8}-+-{'-'*10}-+-{'-'*10}-+-{'-'*8}-+-{'-'*9}")
+    for pv in param_values:
+        recs = by_param[pv]
+        clips = [r['clip_score'] for r in recs if r.get('clip_score') is not None]
+        mags_x = [r['tiling_x_mag'] for r in recs if r.get('tiling_x_mag') is not None]
+        mags_y = [r['tiling_y_mag'] for r in recs if r.get('tiling_y_mag') is not None]
+        times = [r['time_seconds'] for r in recs]
+        vrams = [r['vram_mb'] for r in recs]
+        c = f"{np.mean(clips):.4f}" if clips else "   N/A  "
+        mx = f"{np.mean(mags_x):.6f}" if mags_x else "    N/A   "
+        my = f"{np.mean(mags_y):.6f}" if mags_y else "    N/A   "
+        t = f"{np.mean(times):.1f}"
+        v = f"{np.mean(vrams):.0f}"
+        print(f"  {pv:>8} | {c:>8} | {mx:>10} | {my:>10} | {t:>8} | {v:>9}")
+    print(f"{'='*78}\n")
+
+
+def visualize_ablation(records, ablation_key, out_dir):
+    """生成消融实验指标对比图（CLIP / MAG / 资源消耗）"""
+    import matplotlib
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
+    from collections import defaultdict
+
+    by_param = defaultdict(list)
+    for r in records:
+        by_param[r[ablation_key]].append(r)
+    param_values = sorted(by_param.keys())
+    sample_names = list(dict.fromkeys(r['sample'] for r in records))
+    colors = plt.cm.Set2(np.linspace(0, 1, len(sample_names)))
+
+    fig, axes = plt.subplots(2, 2, figsize=(14, 10))
+
+    def _plot_metric(ax, key, title, ylabel):
+        for idx, sample in enumerate(sample_names):
+            pvs, vals = [], []
+            for pv in param_values:
+                rec = next((r for r in by_param[pv] if r['sample'] == sample), None)
+                v = rec.get(key) if rec else None
+                if v is not None:
+                    pvs.append(pv)
+                    vals.append(v)
+            if vals:
+                ax.plot(pvs, vals, 'o-', color=colors[idx], label=sample, alpha=0.7, markersize=6)
+        avg_pvs, avg_vals = [], []
+        for pv in param_values:
+            vs = [r[key] for r in by_param[pv] if r.get(key) is not None]
+            if vs:
+                avg_pvs.append(pv)
+                avg_vals.append(float(np.mean(vs)))
+        if avg_vals:
+            ax.plot(avg_pvs, avg_vals, 's--', color='black', linewidth=2.5, markersize=8,
+                    label='Average', zorder=5)
+        ax.set_title(title, fontsize=12, fontweight='bold')
+        ax.set_xlabel(ablation_key, fontsize=10)
+        ax.set_ylabel(ylabel, fontsize=10)
+        ax.legend(fontsize=8, loc='best')
+        ax.grid(True, alpha=0.3)
+        ax.set_xticks(param_values)
+
+    _plot_metric(axes[0, 0], 'clip_score', 'CLIP Score (higher is better)', 'CLIP Score')
+    _plot_metric(axes[0, 1], 'tiling_x_mag', 'MAG_x Tiling (lower is better)', 'MAG_x')
+    _plot_metric(axes[1, 0], 'tiling_y_mag', 'MAG_y Tiling (lower is better)', 'MAG_y')
+
+    # 资源消耗柱状图
+    ax = axes[1, 1]
+    avg_times = [float(np.mean([r['time_seconds'] for r in by_param[pv]])) for pv in param_values]
+    avg_vrams = [float(np.mean([r['vram_mb'] for r in by_param[pv]])) for pv in param_values]
+    x_pos = np.arange(len(param_values))
+    w = 0.35
+    ax2 = ax.twinx()
+    ax.bar(x_pos - w / 2, avg_times, w, label='Time (s)', color='steelblue', alpha=0.7)
+    ax2.bar(x_pos + w / 2, avg_vrams, w, label='VRAM (MB)', color='coral', alpha=0.7)
+    ax.set_title('Resource Consumption', fontsize=12, fontweight='bold')
+    ax.set_xlabel(ablation_key, fontsize=10)
+    ax.set_ylabel('Time (s)', fontsize=10, color='steelblue')
+    ax2.set_ylabel('VRAM (MB)', fontsize=10, color='coral')
+    ax.set_xticks(x_pos)
+    ax.set_xticklabels(param_values)
+    ax.legend(loc='upper left', fontsize=8)
+    ax2.legend(loc='upper right', fontsize=8)
+    ax.grid(True, alpha=0.3, axis='y')
+
+    fig.suptitle(f'Ablation Study: {ablation_key}', fontsize=14, fontweight='bold')
+    fig.tight_layout(rect=[0, 0, 1, 0.96])
+    save_path = os.path.join(out_dir, f'ablation_{ablation_key}.png')
+    fig.savefig(save_path, dpi=150, bbox_inches='tight')
+    plt.close(fig)
+    print(f"  指标对比图已保存: {save_path}")
+
+
+def create_comparison_grid(records, ablation_key, img_dir, out_dir):
+    """生成不同参数设置下的图像对比网格"""
+    import matplotlib
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
+    from collections import defaultdict
+
+    by_param = defaultdict(list)
+    for r in records:
+        by_param[r[ablation_key]].append(r)
+    param_values = sorted(by_param.keys())
+    sample_names = list(dict.fromkeys(r['sample'] for r in records))
+
+    nrows, ncols = len(param_values), len(sample_names)
+    fig, axes = plt.subplots(nrows, ncols, figsize=(3.5 * ncols, 3.5 * nrows))
+    if nrows == 1:
+        axes = np.array([axes])
+    if ncols == 1:
+        axes = axes[:, np.newaxis]
+
+    for row, pv in enumerate(param_values):
+        for col, sample in enumerate(sample_names):
+            ax = axes[row, col]
+            rec = next((r for r in by_param[pv] if r['sample'] == sample), None)
+            shown = False
+            if rec:
+                img_path = os.path.join(img_dir, f"{rec['experiment']}_{sample}.png")
+                if os.path.exists(img_path):
+                    ax.imshow(Image.open(img_path))
+                    shown = True
+                    parts = []
+                    if rec.get('clip_score') is not None:
+                        parts.append(f"CLIP={rec['clip_score']:.3f}")
+                    if rec.get('tiling_x_mag') is not None:
+                        parts.append(f"MAG_x={rec['tiling_x_mag']:.4f}")
+                    if parts:
+                        ax.text(5, 25, "\n".join(parts), fontsize=7, color='white',
+                                bbox=dict(boxstyle='round,pad=0.3', facecolor='black', alpha=0.6))
+            if not shown:
+                ax.text(0.5, 0.5, 'N/A', ha='center', va='center', fontsize=12,
+                        color='gray', transform=ax.transAxes)
+            ax.set_xticks([])
+            ax.set_yticks([])
+            if row == 0:
+                ax.set_title(sample.replace('_', ' '), fontsize=10, fontweight='bold')
+            if col == 0:
+                ax.set_ylabel(f'{ablation_key}={pv}', fontsize=9, fontweight='bold')
+
+    fig.suptitle(f'Image Comparison ({ablation_key})', fontsize=14, fontweight='bold')
+    fig.tight_layout(rect=[0, 0, 1, 0.96])
+    save_path = os.path.join(out_dir, f'comparison_grid_{ablation_key}.png')
+    fig.savefig(save_path, dpi=150, bbox_inches='tight')
+    plt.close(fig)
+    print(f"  图像对比网格已保存: {save_path}")
+
+
+def create_x_seam_grid(records, ablation_key, img_dir, out_dir, boundary_width=15):
+    """显示完整的 x 方向 tiled 区域，并在图上标出 boundary 区域"""
+    import matplotlib
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
+    from collections import defaultdict
+    from matplotlib.patches import Rectangle
+
+    by_param = defaultdict(list)
+    for record in records:
+        if record.get("tiling_x_mag") is not None:
+            by_param[record[ablation_key]].append(record)
+
+    if not by_param:
+        print("  未找到可用于 x 方向接缝可视化的记录。")
+        return
+
+    param_values = sorted(by_param.keys())
+    sample_names = list(dict.fromkeys(
+        record["sample"] for record in records if record.get("tiling_x_mag") is not None
+    ))
+
+    nrows, ncols = len(param_values), len(sample_names)
+    fig, axes = plt.subplots(nrows, ncols, figsize=(5.8 * ncols, 2.8 * nrows))
+    if nrows == 1:
+        axes = np.array([axes])
+    if ncols == 1:
+        axes = axes[:, np.newaxis]
+
+    for row, param_value in enumerate(param_values):
+        for col, sample_name in enumerate(sample_names):
+            ax = axes[row, col]
+            record = next((item for item in by_param[param_value] if item["sample"] == sample_name), None)
+            shown = False
+
+            if record is not None:
+                tiled_path = os.path.join(img_dir, f"{record['experiment']}_{sample_name}_tiled.png")
+                if os.path.exists(tiled_path):
+                    tiled_image = np.array(Image.open(tiled_path).convert("RGB"))
+
+                    # 1x2 tiled 图直接整张使用；2x2 tiled 图取上半部分的横向拼接区域。
+                    tiled_height, tiled_width, _ = tiled_image.shape
+                    if tiled_width == tiled_height:
+                        x_tiled_strip = tiled_image[: tiled_height // 2, :, :]
+                    else:
+                        x_tiled_strip = tiled_image
+
+                    strip_height, strip_width, _ = x_tiled_strip.shape
+                    center_x = strip_width // 2
+
+                    ax.imshow(x_tiled_strip)
+
+                    boundary_left = max(0, center_x - boundary_width * 4)
+                    boundary_right = min(strip_width, center_x + boundary_width * 4)
+                    rect = Rectangle(
+                        (boundary_left, 0),
+                        max(1, boundary_right - boundary_left),
+                        strip_height,
+                        linewidth=2,
+                        edgecolor="red",
+                        facecolor="none",
+                    )
+                    ax.add_patch(rect)
+                    ax.axvline(boundary_left, color="red", linestyle="--", linewidth=1)
+                    ax.axvline(boundary_right, color="red", linestyle="--", linewidth=1)
+
+                    info_lines = []
+                    if record.get("tiling_x_mag") is not None:
+                        info_lines.append(f"MAG_x={record['tiling_x_mag']:.4f}")
+                    if record.get("clip_score") is not None:
+                        info_lines.append(f"CLIP={record['clip_score']:.3f}")
+                    if info_lines:
+                        ax.text(
+                            8,
+                            20,
+                            "\n".join(info_lines),
+                            fontsize=7,
+                            color="white",
+                            bbox=dict(boxstyle="round,pad=0.3", facecolor="black", alpha=0.6),
+                        )
+
+                    shown = True
+
+            if not shown:
+                ax.text(0.5, 0.5, "N/A", ha="center", va="center", fontsize=12,
+                        color="gray", transform=ax.transAxes)
+
+            ax.set_xticks([])
+            ax.set_yticks([])
+            if row == 0:
+                ax.set_title(sample_name.replace("_", " "), fontsize=10, fontweight="bold")
+            if col == 0:
+                ax.set_ylabel(f"{ablation_key}={param_value}", fontsize=9, fontweight="bold")
+
+    fig.suptitle(f"X-direction Full Tiled View ({ablation_key})", fontsize=14, fontweight="bold")
+    fig.tight_layout(rect=[0, 0, 1, 0.96])
+    save_path = os.path.join(out_dir, f"x_seam_grid_{ablation_key}.png")
+    fig.savefig(save_path, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+    print(f"  x 方向 tiled 接缝图已保存: {save_path}")
+
+
+def _run_visualize():
+    """从已保存的实验记录生成可视化分析"""
+    found = False
+    vis_dir = get_output_dir("visualize")
+    for exp_name, ablation_key, dir_name in [
+        ("A", "max_width", "ablation_max_width"),
+        ("B", "max_replica_width", "ablation_max_replica_width"),
+    ]:
+        record_path = os.path.join("outputs", f"records_{exp_name}.json")
+        if not os.path.exists(record_path):
+            continue
+        found = True
+        with open(record_path, "r", encoding="utf-8") as f:
+            records = json.load(f)
+        img_dir = os.path.join("outputs", dir_name)
+        print(f"\n--- 可视化实验 {exp_name} ({ablation_key}) ---")
+        print_summary_table(records, ablation_key)
+        visualize_ablation(records, ablation_key, vis_dir)
+        if os.path.isdir(img_dir):
+            create_comparison_grid(records, ablation_key, img_dir, vis_dir)
+            create_x_seam_grid(records, ablation_key, img_dir, vis_dir)
+    if not found:
+        print("未找到实验记录 (outputs/records_A.json 或 records_B.json)。请先运行实验 A 或 B。")
+
+
 # ======================== 主流程 ========================
 
 
 def main():
     parser = argparse.ArgumentParser(description="Tiled Diffusion 实验脚本")
     parser.add_argument("--experiment", type=str, required=True,
-                        choices=["sample", "A", "B", "one2one", "many2many"],
-                        help="实验类型: sample=固定样例, A=max_width消融, B=max_replica_width消融, one2one, many2many")
+                        choices=["sample", "A", "B", "one2one", "many2many", "visualize"],
+                        help="实验类型: sample=固定样例, A=max_width消融, B=max_replica_width消融, one2one, many2many, visualize=可视化已有记录")
     parser.add_argument("--index", type=int, default=None,
                         help="指定样例编号(1-5)或消融编号(如A中1-5, B中1-4)，不指定则全部运行")
     parser.add_argument("--max_width", type=int, default=None,
@@ -360,17 +646,27 @@ def main():
                         help="在线模式使用的 Hugging Face 端点，默认使用 https://hf-mirror.com")
     args = parser.parse_args()
 
+    # 可视化模式不需要加载模型，直接从已有记录生成图表
+    if args.experiment == "visualize":
+        _run_visualize()
+        return
+
     local_files_only = not args.online
     if local_files_only:
         os.environ["HF_HUB_OFFLINE"] = "1"
         os.environ["TRANSFORMERS_OFFLINE"] = "1"
+        os.environ["HF_HUB_DISABLE_XET"] = "1"
         os.environ.pop("HF_ENDPOINT", None)
     else:
         os.environ.pop("HF_HUB_OFFLINE", None)
         os.environ.pop("TRANSFORMERS_OFFLINE", None)
+        os.environ["HF_HUB_DISABLE_XET"] = "1"
         hf_endpoint = args.hf_endpoint or os.environ.get("HF_ENDPOINT") or DEFAULT_HF_ENDPOINT
         os.environ["HF_ENDPOINT"] = hf_endpoint
         print(f"在线模式端点: {hf_endpoint}")
+
+    from model import SDLatentTiling
+    from evaluator import Evaluator
 
     print(f"加载模型 (scheduler={SCHEDULER})...")
     try:
@@ -453,6 +749,20 @@ def main():
         with open(record_path, "w", encoding="utf-8") as f:
             json.dump(all_records, f, ensure_ascii=False, indent=2)
         print(f"\n实验记录已保存至 {record_path}")
+
+        # 消融实验自动生成可视化
+        if args.experiment == "A":
+            ab_dir = get_output_dir("ablation_max_width")
+            print_summary_table(all_records, 'max_width')
+            visualize_ablation(all_records, 'max_width', ab_dir)
+            create_comparison_grid(all_records, 'max_width', ab_dir, ab_dir)
+            create_x_seam_grid(all_records, 'max_width', ab_dir, ab_dir)
+        elif args.experiment == "B":
+            ab_dir = get_output_dir("ablation_max_replica_width")
+            print_summary_table(all_records, 'max_replica_width')
+            visualize_ablation(all_records, 'max_replica_width', ab_dir)
+            create_comparison_grid(all_records, 'max_replica_width', ab_dir, ab_dir)
+            create_x_seam_grid(all_records, 'max_replica_width', ab_dir, ab_dir)
 
 
 if __name__ == "__main__":

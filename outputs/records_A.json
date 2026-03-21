@@ -11,8 +11,11 @@
     "scheduler": "ddpm",
     "height": 512,
     "width": 512,
-    "time_seconds": 24.15,
-    "vram_mb": 5320.5
+    "time_seconds": 17.79,
+    "vram_mb": 5663.3,
+    "clip_score": 0.321,
+    "tiling_x_mag": 0.0664139986038208,
+    "tiling_y_mag": 0.17151300609111786
   },
   {
     "experiment": "A-1",
@@ -26,8 +29,11 @@
     "scheduler": "ddpm",
     "height": 512,
     "width": 512,
-    "time_seconds": 24.18,
-    "vram_mb": 5320.5
+    "time_seconds": 16.65,
+    "vram_mb": 5663.5,
+    "clip_score": 0.3652,
+    "tiling_x_mag": 0.1110450029373169,
+    "tiling_y_mag": 0.09834799915552139
   },
   {
     "experiment": "A-1",
@@ -41,8 +47,11 @@
     "scheduler": "ddpm",
     "height": 512,
     "width": 512,
-    "time_seconds": 23.76,
-    "vram_mb": 5320.5
+    "time_seconds": 16.74,
+    "vram_mb": 5663.5,
+    "clip_score": 0.2993,
+    "tiling_x_mag": 0.04733800143003464,
+    "tiling_y_mag": 0.10503199696540833
   },
   {
     "experiment": "A-1",
@@ -56,8 +65,11 @@
     "scheduler": "ddpm",
     "height": 512,
     "width": 512,
-    "time_seconds": 23.72,
-    "vram_mb": 5320.5
+    "time_seconds": 17.46,
+    "vram_mb": 5663.5,
+    "clip_score": 0.3213,
+    "tiling_x_mag": 0.029718000441789627,
+    "tiling_y_mag": 0.022251000627875328
   },
   {
     "experiment": "A-1",
@@ -71,8 +83,11 @@
     "scheduler": "ddpm",
     "height": 512,
     "width": 512,
-    "time_seconds": 20.86,
-    "vram_mb": 5185.4
+    "time_seconds": 20.56,
+    "vram_mb": 5528.4,
+    "clip_score": 0.3354,
+    "tiling_x_mag": 0.013977999798953533,
+    "tiling_y_mag": null
   },
   {
     "experiment": "A-2",
@@ -86,8 +101,11 @@
     "scheduler": "ddpm",
     "height": 512,
     "width": 512,
-    "time_seconds": 29.4,
-    "vram_mb": 5605.7
+    "time_seconds": 25.87,
+    "vram_mb": 5948.6,
+    "clip_score": 0.312,
+    "tiling_x_mag": 0.08142600208520889,
+    "tiling_y_mag": 0.052282001823186874
   },
   {
     "experiment": "A-2",
@@ -101,8 +119,11 @@
     "scheduler": "ddpm",
     "height": 512,
     "width": 512,
-    "time_seconds": 30.02,
-    "vram_mb": 5605.7
+    "time_seconds": 25.69,
+    "vram_mb": 5948.6,
+    "clip_score": 0.3289,
+    "tiling_x_mag": 0.09762900322675705,
+    "tiling_y_mag": 0.1193080022931099
   },
   {
     "experiment": "A-2",
@@ -116,8 +137,11 @@
     "scheduler": "ddpm",
     "height": 512,
     "width": 512,
-    "time_seconds": 30.74,
-    "vram_mb": 5605.7
+    "time_seconds": 26.02,
+    "vram_mb": 5948.6,
+    "clip_score": 0.3105,
+    "tiling_x_mag": 0.07433799654245377,
+    "tiling_y_mag": 0.1013220027089119
   },
   {
     "experiment": "A-2",
@@ -131,8 +155,11 @@
     "scheduler": "ddpm",
     "height": 512,
     "width": 512,
-    "time_seconds": 30.75,
-    "vram_mb": 5605.7
+    "time_seconds": 26.1,
+    "vram_mb": 5948.6,
+    "clip_score": 0.3069,
+    "tiling_x_mag": 0.023173000663518906,
+    "tiling_y_mag": 0.018559999763965607
   },
   {
     "experiment": "A-2",
@@ -146,8 +173,11 @@
     "scheduler": "ddpm",
     "height": 512,
     "width": 512,
-    "time_seconds": 23.76,
-    "vram_mb": 5305.5
+    "time_seconds": 22.02,
+    "vram_mb": 5648.4,
+    "clip_score": 0.3264,
+    "tiling_x_mag": 0.012505999766290188,
+    "tiling_y_mag": null
   },
   {
     "experiment": "A-3",
@@ -161,8 +191,11 @@
     "scheduler": "ddpm",
     "height": 512,
     "width": 512,
-    "time_seconds": 38.55,
-    "vram_mb": 5920.8
+    "time_seconds": 31.1,
+    "vram_mb": 6263.8,
+    "clip_score": 0.3379,
+    "tiling_x_mag": 0.0886090025305748,
+    "tiling_y_mag": 0.04793599992990494
   },
   {
     "experiment": "A-3",
@@ -176,8 +209,11 @@
     "scheduler": "ddpm",
     "height": 512,
     "width": 512,
-    "time_seconds": 38.78,
-    "vram_mb": 5920.8
+    "time_seconds": 32.56,
+    "vram_mb": 6263.8,
+    "clip_score": 0.3354,
+    "tiling_x_mag": 0.05883000046014786,
+    "tiling_y_mag": 0.08877799659967422
   },
   {
     "experiment": "A-3",
@@ -191,8 +227,11 @@
     "scheduler": "ddpm",
     "height": 512,
     "width": 512,
-    "time_seconds": 37.54,
-    "vram_mb": 5920.8
+    "time_seconds": 32.08,
+    "vram_mb": 6263.8,
+    "clip_score": 0.3069,
+    "tiling_x_mag": 0.03207600116729736,
+    "tiling_y_mag": 0.17950400710105896
   },
   {
     "experiment": "A-3",
@@ -206,8 +245,11 @@
     "scheduler": "ddpm",
     "height": 512,
     "width": 512,
-    "time_seconds": 38.12,
-    "vram_mb": 5920.8
+    "time_seconds": 31.45,
+    "vram_mb": 6263.8,
+    "clip_score": 0.3428,
+    "tiling_x_mag": 0.02842799946665764,
+    "tiling_y_mag": 0.018919000402092934
   },
   {
     "experiment": "A-3",
@@ -221,8 +263,11 @@
     "scheduler": "ddpm",
     "height": 512,
     "width": 512,
-    "time_seconds": 26.2,
-    "vram_mb": 5425.6
+    "time_seconds": 23.88,
+    "vram_mb": 5768.5,
+    "clip_score": 0.3452,
+    "tiling_x_mag": 0.015192000195384026,
+    "tiling_y_mag": null
   },
   {
     "experiment": "A-4",
@@ -236,8 +281,11 @@
     "scheduler": "ddpm",
     "height": 512,
     "width": 512,
-    "time_seconds": 47.46,
-    "vram_mb": 6266.0
+    "time_seconds": 38.8,
+    "vram_mb": 6609.0,
+    "clip_score": 0.3357,
+    "tiling_x_mag": 0.040417999029159546,
+    "tiling_y_mag": 0.01891000010073185
   },
   {
     "experiment": "A-4",
@@ -251,8 +299,11 @@
     "scheduler": "ddpm",
     "height": 512,
     "width": 512,
-    "time_seconds": 48.22,
-    "vram_mb": 6266.0
+    "time_seconds": 37.96,
+    "vram_mb": 6609.0,
+    "clip_score": 0.3264,
+    "tiling_x_mag": 0.07127600163221359,
+    "tiling_y_mag": 0.10275600105524063
   },
   {
     "experiment": "A-4",
@@ -266,8 +317,11 @@
     "scheduler": "ddpm",
     "height": 512,
     "width": 512,
-    "time_seconds": 46.35,
-    "vram_mb": 6266.0
+    "time_seconds": 38.5,
+    "vram_mb": 6609.0,
+    "clip_score": 0.2866,
+    "tiling_x_mag": 0.031957998871803284,
+    "tiling_y_mag": 0.040341999381780624
   },
   {
     "experiment": "A-4",
@@ -281,8 +335,11 @@
     "scheduler": "ddpm",
     "height": 512,
     "width": 512,
-    "time_seconds": 46.15,
-    "vram_mb": 6266.0
+    "time_seconds": 38.75,
+    "vram_mb": 6609.0,
+    "clip_score": 0.332,
+    "tiling_x_mag": 0.02289300039410591,
+    "tiling_y_mag": 0.020826000720262527
   },
   {
     "experiment": "A-4",
@@ -296,8 +353,11 @@
     "scheduler": "ddpm",
     "height": 512,
     "width": 512,
-    "time_seconds": 27.46,
-    "vram_mb": 5545.6
+    "time_seconds": 25.01,
+    "vram_mb": 5888.6,
+    "clip_score": 0.3496,
+    "tiling_x_mag": 0.0157919991761446,
+    "tiling_y_mag": null
   },
   {
     "experiment": "A-5",
@@ -311,8 +371,11 @@
     "scheduler": "ddpm",
     "height": 512,
     "width": 512,
-    "time_seconds": 89.54,
-    "vram_mb": 7947.0
+    "time_seconds": 83.97,
+    "vram_mb": 8290.0,
+    "clip_score": 0.3208,
+    "tiling_x_mag": 0.05222899839282036,
+    "tiling_y_mag": 0.023423999547958374
   },
   {
     "experiment": "A-5",
@@ -326,8 +389,11 @@
     "scheduler": "ddpm",
     "height": 512,
     "width": 512,
-    "time_seconds": 88.51,
-    "vram_mb": 7947.0
+    "time_seconds": 85.23,
+    "vram_mb": 8290.0,
+    "clip_score": 0.3074,
+    "tiling_x_mag": 0.07284700125455856,
+    "tiling_y_mag": 0.08254099637269974
   },
   {
     "experiment": "A-5",
@@ -341,8 +407,11 @@
     "scheduler": "ddpm",
     "height": 512,
     "width": 512,
-    "time_seconds": 87.57,
-    "vram_mb": 7947.0
+    "time_seconds": 82.82,
+    "vram_mb": 8290.0,
+    "clip_score": 0.3284,
+    "tiling_x_mag": 0.04377099871635437,
+    "tiling_y_mag": 0.07853300124406815
   },
   {
     "experiment": "A-5",
@@ -356,8 +425,11 @@
     "scheduler": "ddpm",
     "height": 512,
     "width": 512,
-    "time_seconds": 88.84,
-    "vram_mb": 7947.0
+    "time_seconds": 80.81,
+    "vram_mb": 8290.0,
+    "clip_score": 0.3118,
+    "tiling_x_mag": 0.016076000407338142,
+    "tiling_y_mag": 0.02120400033891201
   },
   {
     "experiment": "A-5",
@@ -371,7 +443,10 @@
     "scheduler": "ddpm",
     "height": 512,
     "width": 512,
-    "time_seconds": 42.1,
-    "vram_mb": 6025.9
+    "time_seconds": 29.82,
+    "vram_mb": 6368.9,
+    "clip_score": 0.3601,
+    "tiling_x_mag": 0.012094000354409218,
+    "tiling_y_mag": null
   }
 ]

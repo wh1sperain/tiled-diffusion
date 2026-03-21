@@ -3,35 +3,32 @@ import numpy as np
 import os
 import torch
 import torchvision.transforms as transforms
+import warnings
 from PIL import Image
 from clip import clip
 from scipy.stats import wasserstein_distance
 from torchmetrics.image.fid import FrechetInceptionDistance
 from torchvision.models import inception_v3
 from torchvision.transforms import Compose, Resize, CenterCrop, ToTensor, Normalize
-from transformers import CLIPProcessor, CLIPModel
 
-from config import CLIP_MODEL_EVALUATION
 from utils import mean_absolute_gradient
 
 
 class Evaluator:
 
     def __init__(self, local_files_only=True):
-        pretrained_kwargs = {
-            "local_files_only": local_files_only,
-        }
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
         if local_files_only:
             os.environ.setdefault("HF_HUB_OFFLINE", "1")
             os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
-
-        self.img_text_model = CLIPModel.from_pretrained(CLIP_MODEL_EVALUATION, **pretrained_kwargs)
-        self.img_text_processor = CLIPProcessor.from_pretrained(CLIP_MODEL_EVALUATION, **pretrained_kwargs)
-        self.device = "cuda" if torch.cuda.is_available() else "cpu"
-        self.clip_model, _ = clip.load("ViT-B/32", device=self.device)
-        self.inception_model = inception_v3(pretrained=True, transform_input=False).eval().to(self.device)
-        self.inception_model.fc = torch.nn.Identity()  # Remove the last fully connected layer
-        self.fid_metric = FrechetInceptionDistance(feature=64)
+        self.clip_model = None
+        self.clip_preprocess = None
+        try:
+            self.clip_model, self.clip_preprocess = clip.load("ViT-B/32", device=self.device)
+        except Exception as exc:
+            warnings.warn(f"OpenAI CLIP 加载失败，将跳过图文对齐指标: {exc}")
+        self.inception_model = None
+        self.fid_metric = None
         self.inception_transform = transforms.Compose([
             transforms.Resize((299, 299)),
             transforms.ToTensor(),
@@ -47,10 +44,22 @@ class Evaluator:
             transforms.ToTensor(),
             transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
         ])
-        self.loss_fn = lpips.LPIPS(net='alex')
+        self.loss_fn = None
+
+    def _ensure_inception_model(self):
+        if self.inception_model is None:
+            self.inception_model = inception_v3(pretrained=True, transform_input=False).eval().to(self.device)
+            self.inception_model.fc = torch.nn.Identity()
+        if self.fid_metric is None:
+            self.fid_metric = FrechetInceptionDistance(feature=64)
+
+    def _ensure_lpips_model(self):
+        if self.loss_fn is None:
+            self.loss_fn = lpips.LPIPS(net='alex')
 
     def calculate_lpips(self, generated_image, ground_truth_image):
         # Preprocess images
+        self._ensure_lpips_model()
         generated_tensor = self.lpips_transform(generated_image).unsqueeze(0)
         ground_truth_tensor = self.lpips_transform(ground_truth_image).unsqueeze(0)
 
@@ -63,6 +72,7 @@ class Evaluator:
 
     def calculate_fid(self, generated_image, ground_truth_image):
         # Load and preprocess images
+        self._ensure_inception_model()
 
         # generated_image = Image.open(generated_image_path).convert('RGB')
         # ground_truth_image = Image.open(ground_truth_image_path).convert('RGB')
@@ -89,15 +99,18 @@ class Evaluator:
         :param prompt: Prompt that from it the image was generated
         :return: Cosine similarity score between the image and the prompt based on clip encoding
         """
+        if self.clip_model is None or self.clip_preprocess is None:
+            return None
+
         image_uint8 = (image * 255).astype(np.uint8)
         pil_image = Image.fromarray(image_uint8)
-        inputs = self.img_text_processor(text=[prompt], images=pil_image, return_tensors="pt", padding=True)
-        with torch.no_grad():
-            outputs = self.img_text_model(**inputs)
 
-        # Extract image and text features
-        image_features = outputs.image_embeds
-        text_features = outputs.text_embeds
+        image_input = self.clip_preprocess(pil_image).unsqueeze(0).to(self.device)
+        text_input = clip.tokenize([prompt]).to(self.device)
+
+        with torch.no_grad():
+            image_features = self.clip_model.encode_image(image_input)
+            text_features = self.clip_model.encode_text(text_input)
 
         # Normalize features
         image_features = image_features / image_features.norm(dim=-1, keepdim=True)
@@ -126,6 +139,7 @@ class Evaluator:
         :param img1: A generated image
         :return: Inception score
         """
+        self._ensure_inception_model()
         image_uint8 = (img * 255).astype(np.uint8)
         pil_image = Image.fromarray(image_uint8)
         transformed_image = self.inception_transform(pil_image).unsqueeze(0)
@@ -151,6 +165,9 @@ class Evaluator:
         :param img: A generated image
         :return: Quality of an image
         """
+        if self.clip_model is None:
+            raise RuntimeError("OpenAI CLIP 未成功加载，无法计算图像质量指标。")
+
         image_uint8 = (img * 255).astype(np.uint8)
         pil_image = Image.fromarray(image_uint8)
         preprocess = Compose([

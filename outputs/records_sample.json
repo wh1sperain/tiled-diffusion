@@ -1,0 +1,17 @@
+[
+  {
+    "experiment": "S1",
+    "sample": "brick_wall",
+    "prompt": "Red brick wall texture, seamless, high quality, detailed mortar lines, realistic",
+    "seed": 151,
+    "max_width": 16,
+    "max_replica_width": 3,
+    "inference_steps": 40,
+    "cfg_scale": 7.5,
+    "scheduler": "ddpm",
+    "height": 512,
+    "width": 512,
+    "time_seconds": 41.23,
+    "vram_mb": 6266.0,
+    "clip_score": null,
+    "tiling_x_mag": 
