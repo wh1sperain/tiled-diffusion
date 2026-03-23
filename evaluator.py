@@ -4,6 +4,7 @@ import os
 import torch
 import torchvision.transforms as transforms
 import warnings
+import cv2
 from PIL import Image
 from clip import clip
 from scipy.stats import wasserstein_distance
@@ -206,3 +207,88 @@ class Evaluator:
         cmmd_score = w_dist + 0.1 * mean_dist + 0.1 * median_dist - 0.1 * clip_norm
 
         return cmmd_score
+
+    def _compute_local_ssim(self, arr1, arr2):
+        """使用局部高斯窗口计算单通道 SSIM，并返回整幅图的平均值。"""
+        height, width = arr1.shape
+        kernel_size = min(11, height, width)
+        if kernel_size % 2 == 0:
+            kernel_size -= 1
+        kernel_size = max(kernel_size, 3)
+
+        sigma = 1.5 if kernel_size >= 7 else 1.0
+        c1 = (0.01 * 1.0) ** 2
+        c2 = (0.03 * 1.0) ** 2
+
+        mu1 = cv2.GaussianBlur(arr1, (kernel_size, kernel_size), sigma)
+        mu2 = cv2.GaussianBlur(arr2, (kernel_size, kernel_size), sigma)
+
+        mu1_sq = mu1 * mu1
+        mu2_sq = mu2 * mu2
+        mu1_mu2 = mu1 * mu2
+
+        sigma1_sq = cv2.GaussianBlur(arr1 * arr1, (kernel_size, kernel_size), sigma) - mu1_sq
+        sigma2_sq = cv2.GaussianBlur(arr2 * arr2, (kernel_size, kernel_size), sigma) - mu2_sq
+        sigma12 = cv2.GaussianBlur(arr1 * arr2, (kernel_size, kernel_size), sigma) - mu1_mu2
+
+        ssim_map = ((2 * mu1_mu2 + c1) * (2 * sigma12 + c2)) / (
+            (mu1_sq + mu2_sq + c1) * (sigma1_sq + sigma2_sq + c2) + 1e-12
+        )
+        return float(np.mean(ssim_map))
+
+    def evaluate_boundary_ssim(self, img1, img2, direction, strip_width=15):
+        """
+        计算两个相邻 tile 接缝处边界条带的结构相似度 (SSIM)。
+        :param img1: 第一张图 (numpy array, shape HxWxC, 值域 0-1)
+        :param img2: 第二张图
+        :param direction: 'x' 水平拼接 (img1 右边 — img2 左边)，'y' 垂直拼接
+        :param strip_width: 取边界条带的像素宽度
+        :return: SSIM 值 (0-1)
+        """
+        if direction == 'x':
+            strip1 = img1[:, -strip_width:, :].astype(np.float64)
+            strip2 = img2[:, :strip_width, :].astype(np.float64)
+        elif direction == 'y':
+            strip1 = img1[-strip_width:, :, :].astype(np.float64)
+            strip2 = img2[:strip_width, :, :].astype(np.float64)
+        else:
+            raise ValueError("direction must be 'x' or 'y'")
+
+        strip1 = np.clip(strip1, 0.0, 1.0)
+        strip2 = np.clip(strip2, 0.0, 1.0)
+
+        if strip1.ndim == 2:
+            return self._compute_local_ssim(strip1, strip2)
+
+        channel_scores = []
+        for channel in range(strip1.shape[2]):
+            channel_scores.append(self._compute_local_ssim(strip1[:, :, channel], strip2[:, :, channel]))
+        return float(np.mean(channel_scores))
+
+    def evaluate_clip_consistency(self, images):
+        """
+        计算多个 tile 之间的 CLIP 视觉一致性（两两余弦相似度的平均值）。
+        :param images: 图像列表 (list of numpy arrays, 值域 0-1)
+        :return: 平均余弦相似度 (0-1)
+        """
+        if self.clip_model is None or self.clip_preprocess is None:
+            return None
+
+        features = []
+        for img in images:
+            img_uint8 = (img * 255).astype(np.uint8)
+            pil_img = Image.fromarray(img_uint8)
+            img_input = self.clip_preprocess(pil_img).unsqueeze(0).to(self.device)
+            with torch.no_grad():
+                feat = self.clip_model.encode_image(img_input)
+            feat = feat / feat.norm(dim=-1, keepdim=True)
+            features.append(feat)
+
+        sims = []
+        n = len(features)
+        for i in range(n):
+            for j in range(i + 1, n):
+                sim = torch.nn.functional.cosine_similarity(features[i], features[j]).item()
+                sims.append(sim)
+
+        return float(np.mean(sims)) if sims else None

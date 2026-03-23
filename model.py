@@ -145,7 +145,7 @@ class SDLatentTiling:
 
     def __call__(self, latents_arr, negative_prompt="", inference_steps=30, seed=42,
                  cfg_scale=12.5, height=512, width=512, max_width=10, max_replica_width=5, strength=0.8,
-                 device='cpu'):
+                 blend_mode="overwrite", device='cpu'):
         for latent in latents_arr:
             latent.set_text_embs(tokenizer=self.tokenizer, text_encoder=self.text_encoder)
         generator = torch.Generator(device='cuda')
@@ -198,7 +198,13 @@ class SDLatentTiling:
             for latent in latents_arr:
                 latent.clone_post_latents()
             logging.warning(f"Tiling latents")
-            latents_arr = LatentHandler.tile(latents_arr, i, groups=graph_groups, max_width=max_width)
+            latents_arr = LatentHandler.tile(
+                latents_arr,
+                i,
+                groups=graph_groups,
+                max_width=max_width,
+                blend_mode=blend_mode,
+            )
             for latent in latents_arr:
                 torch.cuda.empty_cache()
                 gc.collect()
@@ -227,7 +233,13 @@ class SDLatentTiling:
         for latent in latents_arr:
             latent.clone_post_latents()
         logging.warning(f"Tiling latents")
-        latents_arr = LatentHandler.tile(latents_arr, inference_steps, groups=graph_groups, max_width=max_width)
+        latents_arr = LatentHandler.tile(
+            latents_arr,
+            inference_steps,
+            groups=graph_groups,
+            max_width=max_width,
+            blend_mode=blend_mode,
+        )
 
         # Add the new function call here
         logging.warning(f"Applying Random Padding Constraint")

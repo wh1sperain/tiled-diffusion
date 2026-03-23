@@ -8,7 +8,56 @@ from utils import get_tensor_slice_from_latent_and_side_idx
 
 class LatentHandler:
     @staticmethod
-    def tile(latents_arr, step, groups, max_width=10):
+    def _build_blend_weights(reference_tensor, side_idx):
+        """构造沿 padding 宽度方向的线性融合权重。"""
+        _, _, height, width = reference_tensor.shape
+        device = reference_tensor.device
+        dtype = reference_tensor.dtype
+
+        if side_idx == 0:  # Right
+            weights = torch.linspace(0.0, 1.0, width, device=device, dtype=dtype).view(1, 1, 1, width)
+        elif side_idx == 1:  # Left
+            weights = torch.linspace(1.0, 0.0, width, device=device, dtype=dtype).view(1, 1, 1, width)
+        elif side_idx == 2:  # Up
+            weights = torch.linspace(1.0, 0.0, height, device=device, dtype=dtype).view(1, 1, height, 1)
+        else:  # Down
+            weights = torch.linspace(0.0, 1.0, height, device=device, dtype=dtype).view(1, 1, height, 1)
+
+        return weights
+
+    @staticmethod
+    def _write_padding_region(latent_tensor, side_idx, new_tensor, max_width, blend_mode="overwrite"):
+        """将目标切片写入 padding 区域，支持硬覆盖和加权融合。"""
+        _, _, height, width = latent_tensor.size()
+
+        if side_idx == 0:  # Right
+            current_region = latent_tensor[:, :, :, width - max_width:]
+        elif side_idx == 1:  # Left
+            current_region = latent_tensor[:, :, :, :max_width]
+        elif side_idx == 2:  # Up
+            current_region = latent_tensor[:, :, :max_width, :]
+        else:  # Down
+            current_region = latent_tensor[:, :, height - max_width:, :]
+
+        if blend_mode == "overwrite":
+            updated_region = new_tensor
+        elif blend_mode == "weighted":
+            weights = LatentHandler._build_blend_weights(current_region, side_idx)
+            updated_region = (1.0 - weights) * current_region + weights * new_tensor
+        else:
+            raise ValueError(f"Unsupported blend_mode: {blend_mode}")
+
+        if side_idx == 0:  # Right
+            latent_tensor[:, :, :, width - max_width:] = updated_region
+        elif side_idx == 1:  # Left
+            latent_tensor[:, :, :, :max_width] = updated_region
+        elif side_idx == 2:  # Up
+            latent_tensor[:, :, :max_width, :] = updated_region
+        else:  # Down
+            latent_tensor[:, :, height - max_width:, :] = updated_region
+
+    @staticmethod
+    def tile(latents_arr, step, groups, max_width=10, blend_mode="overwrite"):
         for key, val in groups.items():
             target_latent_idx = val['target_latent_idx']
             target_side_idx = val['target_side_idx']
@@ -31,14 +80,13 @@ class LatentHandler:
             rotation_value = TILING_ROTATION_MATRIX[side_source_id][chosen_side_idx]
             rotated_tensor = torch.rot90(tensor, rotation_value, [2, 3])
 
-            if side_source_id == 0:  # Right
-                source_latent.post_latent[:, :, :, W - max_width:] = rotated_tensor
-            elif side_source_id == 1:  # Left
-                source_latent.post_latent[:, :, :, :max_width] = rotated_tensor
-            elif side_source_id == 2:  # Up
-                source_latent.post_latent[:, :, :max_width, :] = rotated_tensor
-            else:  # Down
-                source_latent.post_latent[:, :, H - max_width:, :] = rotated_tensor
+            LatentHandler._write_padding_region(
+                source_latent.post_latent,
+                side_source_id,
+                rotated_tensor,
+                max_width,
+                blend_mode=blend_mode,
+            )
 
         return latents_arr
 

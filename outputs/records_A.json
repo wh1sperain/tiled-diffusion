@@ -11,11 +11,11 @@
     "scheduler": "ddpm",
     "height": 512,
     "width": 512,
-    "time_seconds": 17.79,
+    "time_seconds": 18.32,
     "vram_mb": 5663.3,
-    "clip_score": 0.321,
-    "tiling_x_mag": 0.0664139986038208,
-    "tiling_y_mag": 0.17151300609111786
+    "clip_score": 0.3201,
+    "tiling_x_mag": 0.0869700014591217,
+    "tiling_y_mag": 0.046879999339580536
   },
   {
     "experiment": "A-1",
@@ -29,11 +29,11 @@
     "scheduler": "ddpm",
     "height": 512,
     "width": 512,
-    "time_seconds": 16.65,
+    "time_seconds": 17.47,
     "vram_mb": 5663.5,
-    "clip_score": 0.3652,
-    "tiling_x_mag": 0.1110450029373169,
-    "tiling_y_mag": 0.09834799915552139
+    "clip_score": 0.3276,
+    "tiling_x_mag": 0.12933799624443054,
+    "tiling_y_mag": 0.09714499861001968
   },
   {
     "experiment": "A-1",
@@ -47,11 +47,11 @@
     "scheduler": "ddpm",
     "height": 512,
     "width": 512,
-    "time_seconds": 16.74,
+    "time_seconds": 17.31,
     "vram_mb": 5663.5,
-    "clip_score": 0.2993,
-    "tiling_x_mag": 0.04733800143003464,
-    "tiling_y_mag": 0.10503199696540833
+    "clip_score": 0.3047,
+    "tiling_x_mag": 0.04466100037097931,
+    "tiling_y_mag": 0.04134200140833855
   },
   {
     "experiment": "A-1",
@@ -65,11 +65,11 @@
     "scheduler": "ddpm",
     "height": 512,
     "width": 512,
-    "time_seconds": 17.46,
+    "time_seconds": 17.19,
     "vram_mb": 5663.5,
-    "clip_score": 0.3213,
-    "tiling_x_mag": 0.029718000441789627,
-    "tiling_y_mag": 0.022251000627875328
+    "clip_score": 0.3025,
+    "tiling_x_mag": 0.013338999822735786,
+    "tiling_y_mag": 0.0082609998062253
   },
   {
     "experiment": "A-1",
@@ -83,10 +83,10 @@
     "scheduler": "ddpm",
     "height": 512,
     "width": 512,
-    "time_seconds": 20.56,
+    "time_seconds": 16.26,
     "vram_mb": 5528.4,
-    "clip_score": 0.3354,
-    "tiling_x_mag": 0.013977999798953533,
+    "clip_score": 0.3188,
+    "tiling_x_mag": 0.014306999742984772,
     "tiling_y_mag": null
   },
   {
@@ -101,11 +101,11 @@
     "scheduler": "ddpm",
     "height": 512,
     "width": 512,
-    "time_seconds": 25.87,
+    "time_seconds": 22.95,
     "vram_mb": 5948.6,
-    "clip_score": 0.312,
-    "tiling_x_mag": 0.08142600208520889,
-    "tiling_y_mag": 0.052282001823186874
+    "clip_score": 0.3184,
+    "tiling_x_mag": 0.06569699943065643,
+    "tiling_y_mag": 0.13411599397659302
   },
   {
     "experiment": "A-2",
@@ -119,11 +119,11 @@
     "scheduler": "ddpm",
     "height": 512,
     "width": 512,
-    "time_seconds": 25.69,
+    "time_seconds": 21.8,
     "vram_mb": 5948.6,
-    "clip_score": 0.3289,
-    "tiling_x_mag": 0.09762900322675705,
-    "tiling_y_mag": 0.1193080022931099
+    "clip_score": 0.314,
+    "tiling_x_mag": 0.07009900361299515,
+    "tiling_y_mag": 0.11382599920034409
   },
   {
     "experiment": "A-2",
@@ -137,11 +137,11 @@
     "scheduler": "ddpm",
     "height": 512,
     "width": 512,
-    "time_seconds": 26.02,
+    "time_seconds": 21.56,
     "vram_mb": 5948.6,
-    "clip_score": 0.3105,
-    "tiling_x_mag": 0.07433799654245377,
-    "tiling_y_mag": 0.1013220027089119
+    "clip_score": 0.3044,
+    "tiling_x_mag": 0.04284200072288513,
+    "tiling_y_mag": 0.04069700092077255
   },
   {
     "experiment": "A-2",
@@ -155,11 +155,11 @@
     "scheduler": "ddpm",
     "height": 512,
     "width": 512,
-    "time_seconds": 26.1,
+    "time_seconds": 21.83,
     "vram_mb": 5948.6,
-    "clip_score": 0.3069,
-    "tiling_x_mag": 0.023173000663518906,
-    "tiling_y_mag": 0.018559999763965607
+    "clip_score": 0.3081,
+    "tiling_x_mag": 0.02084599994122982,
+    "tiling_y_mag": 0.003260999917984009
   },
   {
     "experiment": "A-2",
@@ -173,10 +173,10 @@
     "scheduler": "ddpm",
     "height": 512,
     "width": 512,
-    "time_seconds": 22.02,
+    "time_seconds": 16.97,
     "vram_mb": 5648.4,
-    "clip_score": 0.3264,
-    "tiling_x_mag": 0.012505999766290188,
+    "clip_score": 0.3066,
+    "tiling_x_mag": 0.013419000431895256,
     "tiling_y_mag": null
   },
   {
@@ -191,11 +191,11 @@
     "scheduler": "ddpm",
     "height": 512,
     "width": 512,
-    "time_seconds": 31.1,
+    "time_seconds": 27.54,
     "vram_mb": 6263.8,
-    "clip_score": 0.3379,
-    "tiling_x_mag": 0.0886090025305748,
-    "tiling_y_mag": 0.04793599992990494
+    "clip_score": 0.3262,
+    "tiling_x_mag": 0.0631520003080368,
+    "tiling_y_mag": 0.06254199892282486
   },
   {
     "experiment": "A-3",
@@ -209,11 +209,11 @@
     "scheduler": "ddpm",
     "height": 512,
     "width": 512,
-    "time_seconds": 32.56,
+    "time_seconds": 27.53,
     "vram_mb": 6263.8,
-    "clip_score": 0.3354,
-    "tiling_x_mag": 0.05883000046014786,
-    "tiling_y_mag": 0.08877799659967422
+    "clip_score": 0.3057,
+    "tiling_x_mag": 0.07353100180625916,
+    "tiling_y_mag": 0.087567999958992
   },
   {
     "experiment": "A-3",
@@ -227,11 +227,11 @@
     "scheduler": "ddpm",
     "height": 512,
     "width": 512,
-    "time_seconds": 32.08,
+    "time_seconds": 28.12,
     "vram_mb": 6263.8,
-    "clip_score": 0.3069,
-    "tiling_x_mag": 0.03207600116729736,
-    "tiling_y_mag": 0.17950400710105896
+    "clip_score": 0.3179,
+    "tiling_x_mag": 0.04727799817919731,
+    "tiling_y_mag": 0.052949000149965286
   },
   {
     "experiment": "A-3",
@@ -245,11 +245,11 @@
     "scheduler": "ddpm",
     "height": 512,
     "width": 512,
-    "time_seconds": 31.45,
+    "time_seconds": 28.19,
     "vram_mb": 6263.8,
-    "clip_score": 0.3428,
-    "tiling_x_mag": 0.02842799946665764,
-    "tiling_y_mag": 0.018919000402092934
+    "clip_score": 0.3369,
+    "tiling_x_mag": 0.02060299925506115,
+    "tiling_y_mag": 0.02099199965596199
   },
   {
     "experiment": "A-3",
@@ -263,10 +263,10 @@
     "scheduler": "ddpm",
     "height": 512,
     "width": 512,
-    "time_seconds": 23.88,
+    "time_seconds": 19.0,
     "vram_mb": 5768.5,
-    "clip_score": 0.3452,
-    "tiling_x_mag": 0.015192000195384026,
+    "clip_score": 0.3313,
+    "tiling_x_mag": 0.01193500030785799,
     "tiling_y_mag": null
   },
   {
@@ -281,11 +281,11 @@
     "scheduler": "ddpm",
     "height": 512,
     "width": 512,
-    "time_seconds": 38.8,
+    "time_seconds": 34.96,
     "vram_mb": 6609.0,
-    "clip_score": 0.3357,
-    "tiling_x_mag": 0.040417999029159546,
-    "tiling_y_mag": 0.01891000010073185
+    "clip_score": 0.343,
+    "tiling_x_mag": 0.04033999890089035,
+    "tiling_y_mag": 0.04144899919629097
   },
   {
     "experiment": "A-4",
@@ -299,47 +299,47 @@
     "scheduler": "ddpm",
     "height": 512,
     "width": 512,
-    "time_seconds": 37.96,
+    "time_seconds": 34.58,
+    "vram_mb": 6609.0,
+    "clip_score": 0.3054,
+    "tiling_x_mag": 0.08960899710655212,
+    "tiling_y_mag": 0.06696300208568573
+  },
+  {
+    "experiment": "A-4",
+    "sample": "marble_stone",
+    "prompt": "Marble stone surface texture, seamless, white and grey veins, polished, high resolution",
+    "seed": 233,
+    "max_width": 16,
+    "max_replica_width": 3,
+    "inference_steps": 40,
+    "cfg_scale": 7.5,
+    "scheduler": "ddpm",
+    "height": 512,
+    "width": 512,
+    "time_seconds": 35.23,
+    "vram_mb": 6609.0,
+    "clip_score": 0.2742,
+    "tiling_x_mag": 0.057204000651836395,
+    "tiling_y_mag": 0.04774000123143196
+  },
+  {
+    "experiment": "A-4",
+    "sample": "geometric_pattern",
+    "prompt": "Abstract geometric pattern, colorful triangles and hexagons, seamless, flat design, vector art style",
+    "seed": 777,
+    "max_width": 16,
+    "max_replica_width": 3,
+    "inference_steps": 40,
+    "cfg_scale": 7.5,
+    "scheduler": "ddpm",
+    "height": 512,
+    "width": 512,
+    "time_seconds": 34.69,
     "vram_mb": 6609.0,
     "clip_score": 0.3264,
-    "tiling_x_mag": 0.07127600163221359,
-    "tiling_y_mag": 0.10275600105524063
-  },
-  {
-    "experiment": "A-4",
-    "sample": "marble_stone",
-    "prompt": "Marble stone surface texture, seamless, white and grey veins, polished, high resolution",
-    "seed": 233,
-    "max_width": 16,
-    "max_replica_width": 3,
-    "inference_steps": 40,
-    "cfg_scale": 7.5,
-    "scheduler": "ddpm",
-    "height": 512,
-    "width": 512,
-    "time_seconds": 38.5,
-    "vram_mb": 6609.0,
-    "clip_score": 0.2866,
-    "tiling_x_mag": 0.031957998871803284,
-    "tiling_y_mag": 0.040341999381780624
-  },
-  {
-    "experiment": "A-4",
-    "sample": "geometric_pattern",
-    "prompt": "Abstract geometric pattern, colorful triangles and hexagons, seamless, flat design, vector art style",
-    "seed": 777,
-    "max_width": 16,
-    "max_replica_width": 3,
-    "inference_steps": 40,
-    "cfg_scale": 7.5,
-    "scheduler": "ddpm",
-    "height": 512,
-    "width": 512,
-    "time_seconds": 38.75,
-    "vram_mb": 6609.0,
-    "clip_score": 0.332,
-    "tiling_x_mag": 0.02289300039410591,
-    "tiling_y_mag": 0.020826000720262527
+    "tiling_x_mag": 0.022227000445127487,
+    "tiling_y_mag": 0.018647000193595886
   },
   {
     "experiment": "A-4",
@@ -353,10 +353,10 @@
     "scheduler": "ddpm",
     "height": 512,
     "width": 512,
-    "time_seconds": 25.01,
+    "time_seconds": 20.51,
     "vram_mb": 5888.6,
-    "clip_score": 0.3496,
-    "tiling_x_mag": 0.0157919991761446,
+    "clip_score": 0.3347,
+    "tiling_x_mag": 0.017767999321222305,
     "tiling_y_mag": null
   },
   {
@@ -371,11 +371,11 @@
     "scheduler": "ddpm",
     "height": 512,
     "width": 512,
-    "time_seconds": 83.97,
+    "time_seconds": 82.43,
     "vram_mb": 8290.0,
-    "clip_score": 0.3208,
-    "tiling_x_mag": 0.05222899839282036,
-    "tiling_y_mag": 0.023423999547958374
+    "clip_score": 0.3359,
+    "tiling_x_mag": 0.07587400078773499,
+    "tiling_y_mag": 0.04226899892091751
   },
   {
     "experiment": "A-5",
@@ -389,11 +389,11 @@
     "scheduler": "ddpm",
     "height": 512,
     "width": 512,
-    "time_seconds": 85.23,
+    "time_seconds": 81.81,
     "vram_mb": 8290.0,
-    "clip_score": 0.3074,
-    "tiling_x_mag": 0.07284700125455856,
-    "tiling_y_mag": 0.08254099637269974
+    "clip_score": 0.3042,
+    "tiling_x_mag": 0.07466600090265274,
+    "tiling_y_mag": 0.060116998851299286
   },
   {
     "experiment": "A-5",
@@ -407,11 +407,11 @@
     "scheduler": "ddpm",
     "height": 512,
     "width": 512,
-    "time_seconds": 82.82,
+    "time_seconds": 81.63,
     "vram_mb": 8290.0,
-    "clip_score": 0.3284,
-    "tiling_x_mag": 0.04377099871635437,
-    "tiling_y_mag": 0.07853300124406815
+    "clip_score": 0.3376,
+    "tiling_x_mag": 0.11624199897050858,
+    "tiling_y_mag": 0.0784510001540184
   },
   {
     "experiment": "A-5",
@@ -425,11 +425,11 @@
     "scheduler": "ddpm",
     "height": 512,
     "width": 512,
-    "time_seconds": 80.81,
+    "time_seconds": 81.62,
     "vram_mb": 8290.0,
-    "clip_score": 0.3118,
-    "tiling_x_mag": 0.016076000407338142,
-    "tiling_y_mag": 0.02120400033891201
+    "clip_score": 0.3367,
+    "tiling_x_mag": 0.017069000750780106,
+    "tiling_y_mag": 0.006616000086069107
   },
   {
     "experiment": "A-5",
@@ -443,10 +443,100 @@
     "scheduler": "ddpm",
     "height": 512,
     "width": 512,
-    "time_seconds": 29.82,
+    "time_seconds": 29.09,
     "vram_mb": 6368.9,
-    "clip_score": 0.3601,
-    "tiling_x_mag": 0.012094000354409218,
+    "clip_score": 0.3201,
+    "tiling_x_mag": 0.018583999946713448,
+    "tiling_y_mag": null
+  },
+  {
+    "experiment": "A-6",
+    "sample": "brick_wall",
+    "prompt": "Red brick wall texture, seamless, high quality, detailed mortar lines, realistic",
+    "seed": 151,
+    "max_width": 64,
+    "max_replica_width": 3,
+    "inference_steps": 40,
+    "cfg_scale": 7.5,
+    "scheduler": "ddpm",
+    "height": 512,
+    "width": 512,
+    "time_seconds": 346.25,
+    "vram_mb": 13092.9,
+    "clip_score": 0.3325,
+    "tiling_x_mag": 0.04601399973034859,
+    "tiling_y_mag": 0.07257799804210663
+  },
+  {
+    "experiment": "A-6",
+    "sample": "grass_field",
+    "prompt": "Green grass field texture, top view, seamless, natural, high detail, lush",
+    "seed": 42,
+    "max_width": 64,
+    "max_replica_width": 3,
+    "inference_steps": 40,
+    "cfg_scale": 7.5,
+    "scheduler": "ddpm",
+    "height": 512,
+    "width": 512,
+    "time_seconds": 343.91,
+    "vram_mb": 13092.9,
+    "clip_score": 0.3086,
+    "tiling_x_mag": 0.0996680036187172,
+    "tiling_y_mag": 0.07464999705553055
+  },
+  {
+    "experiment": "A-6",
+    "sample": "marble_stone",
+    "prompt": "Marble stone surface texture, seamless, white and grey veins, polished, high resolution",
+    "seed": 233,
+    "max_width": 64,
+    "max_replica_width": 3,
+    "inference_steps": 40,
+    "cfg_scale": 7.5,
+    "scheduler": "ddpm",
+    "height": 512,
+    "width": 512,
+    "time_seconds": 344.2,
+    "vram_mb": 13092.9,
+    "clip_score": 0.2686,
+    "tiling_x_mag": 0.08249100297689438,
+    "tiling_y_mag": 0.07720199972391129
+  },
+  {
+    "experiment": "A-6",
+    "sample": "geometric_pattern",
+    "prompt": "Abstract geometric pattern, colorful triangles and hexagons, seamless, flat design, vector art style",
+    "seed": 777,
+    "max_width": 64,
+    "max_replica_width": 3,
+    "inference_steps": 40,
+    "cfg_scale": 7.5,
+    "scheduler": "ddpm",
+    "height": 512,
+    "width": 512,
+    "time_seconds": 344.01,
+    "vram_mb": 13092.9,
+    "clip_score": 0.3411,
+    "tiling_x_mag": 0.028509000316262245,
+    "tiling_y_mag": 0.057895999401807785
+  },
+  {
+    "experiment": "A-6",
+    "sample": "landscape",
+    "prompt": "Rolling hills landscape, green meadow, blue sky with clouds, warm sunlight, oil painting style",
+    "seed": 1024,
+    "max_width": 64,
+    "max_replica_width": 3,
+    "inference_steps": 40,
+    "cfg_scale": 7.5,
+    "scheduler": "ddpm",
+    "height": 512,
+    "width": 512,
+    "time_seconds": 52.66,
+    "vram_mb": 7329.4,
+    "clip_score": 0.3508,
+    "tiling_x_mag": 0.01272400002926588,
     "tiling_y_mag": null
   }
 ]

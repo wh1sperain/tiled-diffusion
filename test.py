@@ -3,7 +3,9 @@ Tiled Diffusion 实验测试脚本
 用法:
     python test.py --experiment A          # 运行 max_width 消融全部
     python test.py --experiment A --index 1 # 只运行 A-1
-    python test.py --experiment B          # 运行 max_replica_width 消融全部
+    python test.py --experiment B          # 运行 max_replica_width 消融（仅 many2many）
+    python test.py --experiment blend      # 运行 blend_mode 消融（固定 mw=16, mrw=5）
+    python test.py --experiment sample --blend_mode weighted  # 使用加权融合 padding 覆盖
     python test.py --experiment sample     # 运行全部固定样例（默认参数）
     python test.py --experiment sample --index 3  # 只运行样例 3
     python test.py --experiment one2one    # one-to-one 拼接
@@ -12,9 +14,11 @@ Tiled Diffusion 实验测试脚本
 
 import argparse
 import gc
+import glob
 import json
 import os
 import time
+from datetime import datetime
 
 import numpy as np
 import torch
@@ -85,8 +89,24 @@ SAMPLES = [
 
 # ======================== 消融实验配置 ========================
 
-ABLATION_MAX_WIDTH = [4, 8, 12, 16, 32]
-ABLATION_MAX_REPLICA_WIDTH = [1, 3, 5, 8]
+ABLATION_MAX_WIDTH = [4, 8, 12, 16, 32, 64]
+ABLATION_MAX_REPLICA_WIDTH = [0, 1, 3, 5, 8, 16]
+ABLATION_BLEND_MODES = ["overwrite", "weighted"]
+BLEND_ABLATION_MAX_WIDTH = 16
+BLEND_ABLATION_MAX_REPLICA_WIDTH = 5
+
+# many-to-many 消融测试样例（实验 B 重点）
+MANY2MANY_SAMPLES = [
+    {"name": "brick_wall_m2m",
+     "prompt": "Red brick wall texture, seamless, high quality, detailed mortar lines, realistic",
+     "seed": 151},
+    {"name": "grass_field_m2m",
+     "prompt": "Green grass field texture, top view, seamless, natural, high detail, lush",
+     "seed": 42},
+    {"name": "wooden_floor_m2m",
+     "prompt": "Wooden floor planks texture, seamless, natural oak, high detail",
+     "seed": 999},
+]
 
 # ======================== 工具函数 ========================
 
@@ -95,6 +115,23 @@ def get_output_dir(experiment_name):
     out_dir = os.path.join("outputs", experiment_name)
     os.makedirs(out_dir, exist_ok=True)
     return out_dir
+
+
+def get_timestamped_record_path(experiment_name):
+    os.makedirs("outputs", exist_ok=True)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    return os.path.join("outputs", f"records_{experiment_name}_{timestamp}.json")
+
+
+def find_latest_record_path(experiment_name):
+    pattern = os.path.join("outputs", f"records_{experiment_name}_*.json")
+    candidates = glob.glob(pattern)
+    legacy_path = os.path.join("outputs", f"records_{experiment_name}.json")
+    if os.path.exists(legacy_path):
+        candidates.append(legacy_path)
+    if not candidates:
+        return None
+    return max(candidates, key=os.path.getmtime)
 
 
 def save_image(img_array, path):
@@ -130,7 +167,8 @@ def get_vram_mb():
     return 0
 
 
-def run_single_experiment(model, sample, max_width, max_replica_width, out_dir, exp_label, evaluator=None):
+def run_single_experiment(model, sample, max_width, max_replica_width, out_dir, exp_label,
+                          evaluator=None, blend_mode="overwrite"):
     """运行单次实验并保存结果，返回记录字典"""
     torch.cuda.empty_cache()
     gc.collect()
@@ -157,6 +195,7 @@ def run_single_experiment(model, sample, max_width, max_replica_width, out_dir, 
         max_width=max_width,
         max_replica_width=max_replica_width,
         strength=STRENGTH,
+        blend_mode=blend_mode,
         device=device,
     )
     elapsed = time.time() - start_time
@@ -203,6 +242,7 @@ def run_single_experiment(model, sample, max_width, max_replica_width, out_dir, 
         "seed": sample["seed"],
         "max_width": max_width,
         "max_replica_width": max_replica_width,
+        "blend_mode": blend_mode,
         "inference_steps": INFERENCE_STEPS,
         "cfg_scale": CFG_SCALE,
         "scheduler": SCHEDULER,
@@ -226,18 +266,21 @@ def run_single_experiment(model, sample, max_width, max_replica_width, out_dir, 
     return record
 
 
-def run_multi_tile_experiment(model, experiment_type, max_width, max_replica_width, evaluator=None):
+def run_multi_tile_experiment(model, experiment_type, max_width, max_replica_width, evaluator=None,
+                              custom_out_dir=None, label_prefix=None,
+                              prompt_override=None, seed_override=None, sample_name=None,
+                              blend_mode="overwrite"):
     """运行多 tile 拼接实验"""
     torch.cuda.empty_cache()
     gc.collect()
     torch.cuda.reset_peak_memory_stats()
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    out_dir = get_output_dir(experiment_type)
+    out_dir = custom_out_dir or get_output_dir(experiment_type)
 
     if experiment_type == "one2one":
-        prompt = "Medieval castle wall texture, stone blocks, seamless, detailed"
-        seed = 512
+        prompt = prompt_override or "Medieval castle wall texture, stone blocks, seamless, detailed"
+        seed = seed_override or 512
         lat_a = LatentClass(
             prompt=prompt, negative_prompt=NEGATIVE_PROMPT,
             side_id=[1, None, None, None], side_dir=["cw", None, None, None],
@@ -247,11 +290,12 @@ def run_multi_tile_experiment(model, experiment_type, max_width, max_replica_wid
             side_id=[None, 1, None, None], side_dir=[None, "ccw", None, None],
         )
         latents_arr = [lat_a, lat_b]
-        label = "one2one"
+        name_tag = sample_name or "one2one"
+        label = f"{label_prefix}_{name_tag}" if label_prefix else name_tag
 
     elif experiment_type == "many2many":
-        prompt = "Wooden floor planks texture, seamless, natural oak, high detail"
-        seed = 999
+        prompt = prompt_override or "Wooden floor planks texture, seamless, natural oak, high detail"
+        seed = seed_override or 999
         # 2x2: tile 0(右-1,下-2), tile 1(左-1,下-3), tile 2(右-4,上-2), tile 3(左-4,上-3)
         lat0 = LatentClass(prompt=prompt, negative_prompt=NEGATIVE_PROMPT,
                            side_id=[1, None, None, 2], side_dir=["cw", None, None, "cw"])
@@ -262,7 +306,8 @@ def run_multi_tile_experiment(model, experiment_type, max_width, max_replica_wid
         lat3 = LatentClass(prompt=prompt, negative_prompt=NEGATIVE_PROMPT,
                            side_id=[None, 4, 3, None], side_dir=[None, "ccw", "ccw", None])
         latents_arr = [lat0, lat1, lat2, lat3]
-        label = "many2many"
+        name_tag = sample_name or "wooden_floor_m2m"
+        label = f"{label_prefix}_{name_tag}" if label_prefix else name_tag
     else:
         return
 
@@ -278,6 +323,7 @@ def run_multi_tile_experiment(model, experiment_type, max_width, max_replica_wid
         max_width=max_width,
         max_replica_width=max_replica_width,
         strength=STRENGTH,
+        blend_mode=blend_mode,
         device=device,
     )
     elapsed = time.time() - start_time
@@ -299,40 +345,81 @@ def run_multi_tile_experiment(model, experiment_type, max_width, max_replica_wid
     # 评估指标
     clip_scores = []
     tiling_x_scores = []
+    tiling_y_scores = []
+    boundary_ssim_scores = []
+    clip_consistency = None
+
     if evaluator is not None:
         for lat in new_latents:
             clip_scores.append(evaluator.evaluate_image_text_alignment(lat.image, prompt))
+
         if experiment_type == "one2one":
             tiling_x_scores.append(evaluator.evaluate_tiling(
                 new_latents[0].image, new_latents[1].image, direction='x'))
+            boundary_ssim_scores.append(evaluator.evaluate_boundary_ssim(
+                new_latents[0].image, new_latents[1].image, direction='x'))
+
         elif experiment_type == "many2many":
-            # 水平: tile0-tile1, tile2-tile3
+            # 水平接缝: tile0-tile1, tile2-tile3
             tiling_x_scores.append(evaluator.evaluate_tiling(
                 new_latents[0].image, new_latents[1].image, direction='x'))
             tiling_x_scores.append(evaluator.evaluate_tiling(
                 new_latents[2].image, new_latents[3].image, direction='x'))
+            # 垂直接缝: tile0-tile2, tile1-tile3
+            tiling_y_scores.append(evaluator.evaluate_tiling(
+                new_latents[0].image, new_latents[2].image, direction='y'))
+            tiling_y_scores.append(evaluator.evaluate_tiling(
+                new_latents[1].image, new_latents[3].image, direction='y'))
+            # 边界 SSIM (四条接缝)
+            boundary_ssim_scores.append(evaluator.evaluate_boundary_ssim(
+                new_latents[0].image, new_latents[1].image, direction='x'))
+            boundary_ssim_scores.append(evaluator.evaluate_boundary_ssim(
+                new_latents[2].image, new_latents[3].image, direction='x'))
+            boundary_ssim_scores.append(evaluator.evaluate_boundary_ssim(
+                new_latents[0].image, new_latents[2].image, direction='y'))
+            boundary_ssim_scores.append(evaluator.evaluate_boundary_ssim(
+                new_latents[1].image, new_latents[3].image, direction='y'))
+
+        # Tile 间视觉一致性
+        tile_images = [lat.image for lat in new_latents]
+        clip_consistency = evaluator.evaluate_clip_consistency(tile_images)
 
     valid_clip = [s for s in clip_scores if s is not None]
     avg_clip = float(round(np.mean(valid_clip), 4)) if valid_clip else None
     avg_mag_x = float(round(np.mean(tiling_x_scores), 6)) if tiling_x_scores else None
+    avg_mag_y = float(round(np.mean(tiling_y_scores), 6)) if tiling_y_scores else None
+    avg_bssim = float(round(np.mean(boundary_ssim_scores), 4)) if boundary_ssim_scores else None
+    clip_cons = float(round(clip_consistency, 4)) if clip_consistency is not None else None
 
     metrics_str = f"耗时 {elapsed:.1f}s  |  显存 {vram:.0f}MB"
     if avg_clip is not None:
         metrics_str += f"  |  CLIP={avg_clip:.4f}"
     if avg_mag_x is not None:
         metrics_str += f"  |  MAG_x={avg_mag_x:.6f}"
+    if avg_mag_y is not None:
+        metrics_str += f"  |  MAG_y={avg_mag_y:.6f}"
+    if avg_bssim is not None:
+        metrics_str += f"  |  BSSIM={avg_bssim:.4f}"
+    if clip_cons is not None:
+        metrics_str += f"  |  CLIPcons={clip_cons:.4f}"
     print(f"  [{label}] 完成  |  {metrics_str}")
 
     return {
         "experiment": label,
+        "sample": name_tag,
+        "sample_type": experiment_type,
         "prompt": prompt,
         "seed": seed,
         "max_width": max_width,
         "max_replica_width": max_replica_width,
+        "blend_mode": blend_mode,
         "time_seconds": round(elapsed, 2),
         "vram_mb": round(vram, 1),
-        "clip_score_avg": avg_clip,
-        "tiling_x_mag_avg": avg_mag_x,
+        "clip_score": avg_clip,
+        "tiling_x_mag": avg_mag_x,
+        "tiling_y_mag": avg_mag_y,
+        "boundary_ssim": avg_bssim,
+        "clip_consistency": clip_cons,
     }
 
 
@@ -441,6 +528,52 @@ def visualize_ablation(records, ablation_key, out_dir):
     print(f"  指标对比图已保存: {save_path}")
 
 
+def visualize_boundary_ssim(records, ablation_key, out_dir):
+    """生成 Boundary SSIM 指标图。"""
+    import matplotlib
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
+    from collections import defaultdict
+
+    valid_records = [r for r in records if r.get('boundary_ssim') is not None]
+    if not valid_records:
+        return
+
+    by_param = defaultdict(list)
+    for record in valid_records:
+        by_param[record[ablation_key]].append(record)
+
+    param_values = sorted(by_param.keys())
+    sample_names = list(dict.fromkeys(record['sample'] for record in valid_records))
+    colors = plt.cm.Set2(np.linspace(0, 1, len(sample_names)))
+
+    fig, ax = plt.subplots(figsize=(10, 6))
+    for idx, sample_name in enumerate(sample_names):
+        x_values, y_values = [], []
+        for param_value in param_values:
+            record = next((item for item in by_param[param_value] if item['sample'] == sample_name), None)
+            if record is not None:
+                x_values.append(param_value)
+                y_values.append(record['boundary_ssim'])
+        if y_values:
+            ax.plot(x_values, y_values, 'o-', color=colors[idx], label=sample_name, alpha=0.8, markersize=6)
+
+    avg_values = [float(np.mean([record['boundary_ssim'] for record in by_param[param_value]])) for param_value in param_values]
+    ax.plot(param_values, avg_values, 's--', color='black', linewidth=2.5, markersize=8, label='Average')
+    ax.set_title('Boundary SSIM (higher is better)', fontsize=12, fontweight='bold')
+    ax.set_xlabel(ablation_key, fontsize=10)
+    ax.set_ylabel('Boundary SSIM', fontsize=10)
+    ax.set_xticks(param_values)
+    ax.grid(True, alpha=0.3)
+    ax.legend(fontsize=8, loc='best')
+
+    fig.tight_layout()
+    save_path = os.path.join(out_dir, f'boundary_ssim_{ablation_key}.png')
+    fig.savefig(save_path, dpi=150, bbox_inches='tight')
+    plt.close(fig)
+    print(f"  Boundary SSIM 图已保存: {save_path}")
+
+
 def create_comparison_grid(records, ablation_key, img_dir, out_dir):
     """生成不同参数设置下的图像对比网格"""
     import matplotlib
@@ -467,7 +600,10 @@ def create_comparison_grid(records, ablation_key, img_dir, out_dir):
             rec = next((r for r in by_param[pv] if r['sample'] == sample), None)
             shown = False
             if rec:
-                img_path = os.path.join(img_dir, f"{rec['experiment']}_{sample}.png")
+                if rec.get("sample_type") == "many2many":
+                    img_path = os.path.join(img_dir, f"{rec['experiment']}_combined.png")
+                else:
+                    img_path = os.path.join(img_dir, f"{rec['experiment']}_{sample}.png")
                 if os.path.exists(img_path):
                     ax.imshow(Image.open(img_path))
                     shown = True
@@ -533,11 +669,14 @@ def create_x_seam_grid(records, ablation_key, img_dir, out_dir, boundary_width=1
             shown = False
 
             if record is not None:
-                tiled_path = os.path.join(img_dir, f"{record['experiment']}_{sample_name}_tiled.png")
+                if record.get("sample_type") == "many2many":
+                    tiled_path = os.path.join(img_dir, f"{record['experiment']}_combined.png")
+                else:
+                    tiled_path = os.path.join(img_dir, f"{record['experiment']}_{sample_name}_tiled.png")
                 if os.path.exists(tiled_path):
                     tiled_image = np.array(Image.open(tiled_path).convert("RGB"))
 
-                    # 1x2 tiled 图直接整张使用；2x2 tiled 图取上半部分的横向拼接区域。
+                    # 1x2 tiled 图直接整张使用；2x2 tiled/combined 图取上半部分的横向拼接区域。
                     tiled_height, tiled_width, _ = tiled_image.shape
                     if tiled_width == tiled_height:
                         x_tiled_strip = tiled_image[: tiled_height // 2, :, :]
@@ -606,22 +745,25 @@ def _run_visualize():
     for exp_name, ablation_key, dir_name in [
         ("A", "max_width", "ablation_max_width"),
         ("B", "max_replica_width", "ablation_max_replica_width"),
+        ("blend", "blend_mode", "ablation_blend_mode"),
     ]:
-        record_path = os.path.join("outputs", f"records_{exp_name}.json")
-        if not os.path.exists(record_path):
+        record_path = find_latest_record_path(exp_name)
+        if not record_path:
             continue
         found = True
         with open(record_path, "r", encoding="utf-8") as f:
             records = json.load(f)
         img_dir = os.path.join("outputs", dir_name)
         print(f"\n--- 可视化实验 {exp_name} ({ablation_key}) ---")
+        print(f"  使用记录文件: {record_path}")
         print_summary_table(records, ablation_key)
         visualize_ablation(records, ablation_key, vis_dir)
+        visualize_boundary_ssim(records, ablation_key, vis_dir)
         if os.path.isdir(img_dir):
             create_comparison_grid(records, ablation_key, img_dir, vis_dir)
             create_x_seam_grid(records, ablation_key, img_dir, vis_dir)
     if not found:
-        print("未找到实验记录 (outputs/records_A.json 或 records_B.json)。请先运行实验 A 或 B。")
+        print("未找到实验记录。请先运行实验 A、B 或 blend。")
 
 
 # ======================== 主流程 ========================
@@ -630,14 +772,17 @@ def _run_visualize():
 def main():
     parser = argparse.ArgumentParser(description="Tiled Diffusion 实验脚本")
     parser.add_argument("--experiment", type=str, required=True,
-                        choices=["sample", "A", "B", "one2one", "many2many", "visualize"],
-                        help="实验类型: sample=固定样例, A=max_width消融, B=max_replica_width消融, one2one, many2many, visualize=可视化已有记录")
+                        choices=["sample", "A", "B", "blend", "one2one", "many2many", "visualize"],
+                        help="实验类型: sample=固定样例, A=max_width消融, B=max_replica_width消融, blend=padding融合策略消融, one2one, many2many, visualize=可视化已有记录")
     parser.add_argument("--index", type=int, default=None,
-                        help="指定样例编号(1-5)或消融编号(如A中1-5, B中1-4)，不指定则全部运行")
+                        help="指定样例编号(1-5)或消融编号(如A中1-6, B中1-6, blend中1-2)，不指定则全部运行")
     parser.add_argument("--max_width", type=int, default=None,
                         help="覆盖默认 max_width (实验B时使用)")
     parser.add_argument("--max_replica_width", type=int, default=None,
                         help="覆盖默认 max_replica_width")
+    parser.add_argument("--blend_mode", type=str, default="overwrite",
+                        choices=["overwrite", "weighted"],
+                        help="padding 覆盖方式: overwrite=原始硬覆盖, weighted=线性加权融合")
     parser.add_argument("--no_eval", action="store_true",
                         help="跳过评估指标计算（加快运行速度）")
     parser.add_argument("--online", action="store_true",
@@ -702,7 +847,16 @@ def main():
             mw = args.max_width or DEFAULT_MAX_WIDTH
             mrw = args.max_replica_width or DEFAULT_MAX_REPLICA_WIDTH
             print(f"\n--- 样例 {i+1}: {s['desc']} ---")
-            rec = run_single_experiment(model, s, mw, mrw, out_dir, f"S{i+1}", evaluator=evaluator)
+            rec = run_single_experiment(
+                model,
+                s,
+                mw,
+                mrw,
+                out_dir,
+                f"S{i+1}",
+                evaluator=evaluator,
+                blend_mode=args.blend_mode,
+            )
             all_records.append(rec)
 
     elif args.experiment == "A":
@@ -715,9 +869,18 @@ def main():
             widths = ABLATION_MAX_WIDTH
             labels = [f"A-{j+1}" for j in range(len(widths))]
         for mw, label in zip(widths, labels):
-            print(f"\n=== {label}: max_width={mw}, max_replica_width={mrw} ===")
+            print(f"\n=== {label}: max_width={mw}, max_replica_width={mrw}, blend_mode={args.blend_mode} ===")
             for i, s in enumerate(SAMPLES):
-                rec = run_single_experiment(model, s, mw, mrw, out_dir, label, evaluator=evaluator)
+                rec = run_single_experiment(
+                    model,
+                    s,
+                    mw,
+                    mrw,
+                    out_dir,
+                    label,
+                    evaluator=evaluator,
+                    blend_mode=args.blend_mode,
+                )
                 all_records.append(rec)
 
     elif args.experiment == "B":
@@ -730,22 +893,79 @@ def main():
             rws = ABLATION_MAX_REPLICA_WIDTH
             labels = [f"B-{j+1}" for j in range(len(rws))]
         for mrw, label in zip(rws, labels):
-            print(f"\n=== {label}: max_width={mw}, max_replica_width={mrw} ===")
-            for i, s in enumerate(SAMPLES):
-                rec = run_single_experiment(model, s, mw, mrw, out_dir, label, evaluator=evaluator)
+            print(f"\n=== {label}: max_width={mw}, max_replica_width={mrw}, blend_mode={args.blend_mode} (many2many only) ===")
+            for m2m in MANY2MANY_SAMPLES:
+                print(f"  --- {label}: many2many {m2m['name']} ---")
+                rec_m2m = run_multi_tile_experiment(
+                    model, "many2many", mw, mrw, evaluator=evaluator,
+                    custom_out_dir=out_dir, label_prefix=label,
+                    prompt_override=m2m['prompt'], seed_override=m2m['seed'],
+                    sample_name=m2m['name'], blend_mode=args.blend_mode)
+                if rec_m2m:
+                    all_records.append(rec_m2m)
+
+    elif args.experiment == "blend":
+        out_dir = get_output_dir("ablation_blend_mode")
+        mw = BLEND_ABLATION_MAX_WIDTH
+        mrw = BLEND_ABLATION_MAX_REPLICA_WIDTH
+        if args.index:
+            blend_modes = [ABLATION_BLEND_MODES[args.index - 1]]
+            labels = [f"C-{args.index}"]
+        else:
+            blend_modes = ABLATION_BLEND_MODES
+            labels = [f"C-{j+1}" for j in range(len(blend_modes))]
+
+        for blend_mode, label in zip(blend_modes, labels):
+            print(f"\n=== {label}: max_width={mw}, max_replica_width={mrw}, blend_mode={blend_mode} ===")
+            for sample in SAMPLES:
+                rec = run_single_experiment(
+                    model,
+                    sample,
+                    mw,
+                    mrw,
+                    out_dir,
+                    label,
+                    evaluator=evaluator,
+                    blend_mode=blend_mode,
+                )
                 all_records.append(rec)
+
+            for m2m in MANY2MANY_SAMPLES:
+                print(f"  --- {label}: many2many {m2m['name']} ---")
+                rec_m2m = run_multi_tile_experiment(
+                    model,
+                    "many2many",
+                    mw,
+                    mrw,
+                    evaluator=evaluator,
+                    custom_out_dir=out_dir,
+                    label_prefix=label,
+                    prompt_override=m2m['prompt'],
+                    seed_override=m2m['seed'],
+                    sample_name=m2m['name'],
+                    blend_mode=blend_mode,
+                )
+                if rec_m2m:
+                    all_records.append(rec_m2m)
 
     elif args.experiment in ("one2one", "many2many"):
         mw = args.max_width or DEFAULT_MAX_WIDTH
         mrw = args.max_replica_width or DEFAULT_MAX_REPLICA_WIDTH
-        print(f"\n=== {args.experiment}: max_width={mw}, max_replica_width={mrw} ===")
-        rec = run_multi_tile_experiment(model, args.experiment, mw, mrw, evaluator=evaluator)
+        print(f"\n=== {args.experiment}: max_width={mw}, max_replica_width={mrw}, blend_mode={args.blend_mode} ===")
+        rec = run_multi_tile_experiment(
+            model,
+            args.experiment,
+            mw,
+            mrw,
+            evaluator=evaluator,
+            blend_mode=args.blend_mode,
+        )
         if rec:
             all_records.append(rec)
 
     # 保存实验记录
     if all_records:
-        record_path = os.path.join("outputs", f"records_{args.experiment}.json")
+        record_path = get_timestamped_record_path(args.experiment)
         with open(record_path, "w", encoding="utf-8") as f:
             json.dump(all_records, f, ensure_ascii=False, indent=2)
         print(f"\n实验记录已保存至 {record_path}")
@@ -755,14 +975,23 @@ def main():
             ab_dir = get_output_dir("ablation_max_width")
             print_summary_table(all_records, 'max_width')
             visualize_ablation(all_records, 'max_width', ab_dir)
+            visualize_boundary_ssim(all_records, 'max_width', ab_dir)
             create_comparison_grid(all_records, 'max_width', ab_dir, ab_dir)
             create_x_seam_grid(all_records, 'max_width', ab_dir, ab_dir)
         elif args.experiment == "B":
             ab_dir = get_output_dir("ablation_max_replica_width")
             print_summary_table(all_records, 'max_replica_width')
             visualize_ablation(all_records, 'max_replica_width', ab_dir)
+            visualize_boundary_ssim(all_records, 'max_replica_width', ab_dir)
             create_comparison_grid(all_records, 'max_replica_width', ab_dir, ab_dir)
             create_x_seam_grid(all_records, 'max_replica_width', ab_dir, ab_dir)
+        elif args.experiment == "blend":
+            ab_dir = get_output_dir("ablation_blend_mode")
+            print_summary_table(all_records, 'blend_mode')
+            visualize_ablation(all_records, 'blend_mode', ab_dir)
+            visualize_boundary_ssim(all_records, 'blend_mode', ab_dir)
+            create_comparison_grid(all_records, 'blend_mode', ab_dir, ab_dir)
+            create_x_seam_grid(all_records, 'blend_mode', ab_dir, ab_dir)
 
 
 if __name__ == "__main__":
